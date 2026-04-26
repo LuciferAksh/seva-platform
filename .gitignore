@@ -1,0 +1,33 @@
+# Environments
+.venv/
+.env
+.env.*
+!.env.example
+node_modules/
+
+# Secrets & Credentials
+secrets/
+*.json
+!package.json
+!tsconfig.json
+!manifest.webmanifest
+
+# Build & Temp
+dist/
+dev-dist/
+build/
+uploads/
+graphify-out/
+*.log
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

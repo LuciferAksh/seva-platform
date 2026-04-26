@@ -1,0 +1,112 @@
+function SevaMap({ needs, volunteers, onSelect, selected, newNeed }: any) {
+  const W = 600, H = 400;
+  let latMin = 90, latMax = -90, lngMin = 180, lngMax = -180;
+  let hasValidCoords = false;
+  
+  needs.forEach((n: any) => {
+    if (n.extraction?.coordinates?.lat && n.extraction?.coordinates?.lng) {
+      hasValidCoords = true;
+      latMin = Math.min(latMin, n.extraction.coordinates.lat);
+      latMax = Math.max(latMax, n.extraction.coordinates.lat);
+      lngMin = Math.min(lngMin, n.extraction.coordinates.lng);
+      lngMax = Math.max(lngMax, n.extraction.coordinates.lng);
+    }
+  });
+  volunteers.forEach((v: any) => {
+    if (v.coordinates?.lat && v.coordinates?.lng) {
+      hasValidCoords = true;
+      latMin = Math.min(latMin, v.coordinates.lat);
+      latMax = Math.max(latMax, v.coordinates.lat);
+      lngMin = Math.min(lngMin, v.coordinates.lng);
+      lngMax = Math.max(lngMax, v.coordinates.lng);
+    }
+  });
+
+  if (!hasValidCoords) {
+    latMin = 8; latMax = 37; lngMin = 68; lngMax = 97;
+  } else {
+    if (latMax - latMin < 0.01) { latMin -= 0.05; latMax += 0.05; }
+    if (lngMax - lngMin < 0.01) { lngMin -= 0.05; lngMax += 0.05; }
+    const pLat = (latMax - latMin) * 0.1; const pLng = (lngMax - lngMin) * 0.1;
+    latMin -= pLat; latMax += pLat; lngMin -= pLng; lngMax += pLng;
+  }
+
+  function toSVG(lat: number, lng: number) {
+    return {
+      x: ((lng - lngMin) / (lngMax - lngMin)) * W,
+      y: ((latMax - lat) / (latMax - latMin)) * H,
+    };
+  }
+
+  const roads = [
+    'M 30 200 L 570 200', 'M 300 30 L 300 370',
+    'M 30 100 L 570 300', 'M 30 300 L 570 100',
+    'M 100 30 L 100 370', 'M 500 30 L 500 370',
+    'M 30 130 L 570 130', 'M 30 270 L 570 270',
+  ];
+
+  return (
+    <div style={{ position:'relative', background:C.bg1, borderRadius:10, overflow:'hidden', border:`1px solid ${C.border}`, height:'100%' }}>
+      <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:2, overflow:'hidden' }}>
+        <div style={{ position:'absolute', left:0, right:0, height:'2px', background:'linear-gradient(90deg, transparent, rgba(0,229,160,0.06), transparent)', animation:'scanline 4s linear infinite' }} />
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'100%', display:'block' }}>
+        {Array.from({length:13}).map((_,i) => (
+          <line key={`vg${i}`} x1={i*50} y1={0} x2={i*50} y2={H} stroke={C.text3} strokeWidth={.3} opacity={.4} />
+        ))}
+        {Array.from({length:9}).map((_,i) => (
+          <line key={`hg${i}`} x1={0} y1={i*50} x2={W} y2={i*50} stroke={C.text3} strokeWidth={.3} opacity={.4} />
+        ))}
+
+        {roads.map((d,i) => (
+          <line key={i} x1={d.split(' ')[1]} y1={d.split(' ')[2]} x2={d.split(' ')[4]} y2={d.split(' ')[5]}
+            stroke={C.border} strokeWidth={1.5} opacity={0.6} />
+        ))}
+
+        {needs.filter((n:any)=>n.extraction?.coordinates?.lat && n.extraction?.coordinates?.lng).map((n:any) => {
+          const p = toSVG(n.extraction.coordinates.lat, n.extraction.coordinates.lng);
+          const cat = getCat(n.extraction.category);
+          const r = 6 + (n.extraction.urgency_level || 1) * 0.5;
+          const isSelected = selected?.id === n.id;
+          const isNew = newNeed?.id === n.id;
+          return (
+            <g key={n.id} onClick={() => onSelect(n)} style={{ cursor:'pointer' }}>
+              {(n.extraction.urgency_level >= 7 || isSelected || isNew) && (
+                <circle cx={p.x} cy={p.y} r={r+4} fill="none" stroke={isNew?C.ai:cat.dot} strokeWidth={1.5}
+                  opacity={0.5} style={{ animation:`pulse-ring ${isNew?'.8s':'2s'} ease-out infinite` }} />
+              )}
+              {isSelected && <circle cx={p.x} cy={p.y} r={r+9} fill="none" stroke={cat.dot} strokeWidth={1} opacity={0.25} />}
+              <circle cx={p.x} cy={p.y} r={r} fill={cat.dot}
+                fillOpacity={n.status==='completed'?.3:.85}
+                stroke={isSelected?'white':cat.dot} strokeWidth={isSelected?2:1}
+                style={{ filter:`drop-shadow(0 0 ${n.extraction.urgency_level>=8?6:3}px ${cat.dot})` }} />
+              {n.status==='assigned' && <circle cx={p.x+r-2} cy={p.y-r+2} r={3} fill={C.warn} />}
+              {n.status==='completed' && <circle cx={p.x+r-2} cy={p.y-r+2} r={3} fill={C.accent} />}
+            </g>
+          );
+        })}
+
+        {volunteers.filter((v:any)=>v.availability==='available' && v.coordinates?.lat && v.coordinates?.lng).map((v:any) => {
+          const p = toSVG(v.coordinates.lat, v.coordinates.lng);
+          return (
+            <g key={v.id}>
+              <polygon points={`${p.x},${p.y-7} ${p.x-5},${p.y+4} ${p.x+5},${p.y+4}`}
+                fill={C.accent} fillOpacity={.55} stroke={C.accent} strokeWidth={1} />
+            </g>
+          );
+        })}
+
+        <g transform="translate(10,10)">
+          <rect width={110} height={60} rx={4} fill={C.bg2} fillOpacity={.92} />
+          <circle cx={12} cy={14} r={5} fill={C.danger} style={{filter:`drop-shadow(0 0 3px ${C.danger})`}} />
+          <text x={22} y={18} fontSize={8} fill={C.text2} fontFamily="DM Sans">High urgency need</text>
+          <polygon points="12,28 7,38 17,38" fill={C.accent} fillOpacity={.7} />
+          <text x={22} y={36} fontSize={8} fill={C.text2} fontFamily="DM Sans">Available volunteer</text>
+          <circle cx={12} cy={50} r={4} fill={C.warn} />
+          <text x={22} y={54} fontSize={8} fill={C.text2} fontFamily="DM Sans">Assigned</text>
+        </g>
+      </svg>
+    </div>
+  );
+}
