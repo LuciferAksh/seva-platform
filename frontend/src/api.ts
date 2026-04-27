@@ -1,7 +1,10 @@
 import type { Assignment, Match, Need, Summary, Volunteer, VolunteerSignupInput } from "./types";
 import { getFirebaseIdToken } from "./firebase";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+// Auto-switch between local and production backend
+const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
+  ? "http://localhost:8000" 
+  : "https://seva-backend-1064361639605.asia-south1.run.app";
 
 async function buildHeaders(extra?: HeadersInit): Promise<HeadersInit> {
   const token = await getFirebaseIdToken();
@@ -154,7 +157,7 @@ export async function createCompletion(payload: {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to mark task complete");
+    const errorData = await response.json().catch(() => ({ detail: "Failed to mark task complete" }));
+    throw new Error(errorData.detail || "Failed to mark task complete");
   }
-  return response.json();
-}
+  return response.json();}

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import AuthContext, get_auth_context
@@ -18,15 +18,28 @@ from .models import (
 from .services.intake import SubmissionProcessor
 from .store import store
 
+import logging
+logger = logging.getLogger("api")
+
 app = FastAPI(
     title="SEVA API",
     version="0.1.0",
     description="Starter API for the SEVA volunteer coordination platform.",
 )
 
+# Security: Explicitly allow the local and production origins to prevent CORS blocks.
+# This allows 'allow_credentials=True' which is required for Firebase Auth headers.
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://seva-solution-challenge-2026.web.app",
+    "https://seva-solution-challenge-2026.firebaseapp.com",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -161,7 +174,10 @@ async def mark_complete(
             )
             media_uri = stored.uri
             
-            verified_people, reasoning = pipeline.verify_completion_image(file_bytes, file.content_type or "image/jpeg")
+            is_valid, verified_people, reasoning = pipeline.verify_completion_image(file_bytes, file.content_type or "image/jpeg")
+
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"❌ AI Audit Failed: {reasoning}")
 
     completion = store.mark_complete(
         need_id=need_id,

@@ -12,12 +12,26 @@ secrets/
 !tsconfig.json
 !manifest.webmanifest
 
+# Images & Assets
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webm
+
+# Helper/Migration Scripts
+**/*.py
+!backend/app/**/*.py
+!backend/*.py
+!backend/seed_*.py
+
 # Build & Temp
 dist/
 dev-dist/
 build/
 uploads/
 graphify-out/
+.firebase/
 *.log
 *.tsbuildinfo
 

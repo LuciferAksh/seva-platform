@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import os
 from uuid import uuid4
 
 from .extractor import extract_need
@@ -177,12 +177,19 @@ class DemoStore:
         return volunteer
 
     def get_matches(self, need_id: str) -> list[MatchRecommendation]:
+        if not hasattr(self, 'matches_cache'):
+            self.matches_cache = {}
+        if need_id in self.matches_cache:
+            return self.matches_cache[need_id]
+
         need = next((item for item in self.needs if item.id == need_id), None)
         if need is None:
             return []
 
-        matches = [score_volunteer(need, volunteer) for volunteer in self.volunteers]
-        return sorted(matches, key=lambda item: item.score, reverse=True)
+        from .matching import rank_volunteers
+        matches = rank_volunteers(need, self.volunteers)
+        self.matches_cache[need_id] = matches
+        return matches
 
     def list_assignments(self, volunteer_id: str | None = None) -> list[AssignmentRecord]:
         if volunteer_id is None:
@@ -271,10 +278,20 @@ from .config import get_settings
 
 settings = get_settings()
 
-if settings.firebase_enabled and settings.firebase_credentials_path:
+if settings.firebase_enabled:
     from google.cloud import firestore
     from .firestore_store import FirestoreStore
-    db = firestore.Client.from_service_account_json(settings.firebase_credentials_path, project=settings.firebase_project_id)
+    # K_SERVICE is automatically set by Google Cloud Run. 
+    # If it exists, we are in the cloud and MUST use default credentials.
+    if os.getenv("K_SERVICE"):
+        # Force the SDK to ignore any local file paths
+        if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+            del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+        db = firestore.Client(project=settings.firebase_project_id)
+    elif not settings.firebase_credentials_path or not os.path.exists(settings.firebase_credentials_path):
+        db = firestore.Client(project=settings.firebase_project_id)
+    else:
+        db = firestore.Client.from_service_account_json(settings.firebase_credentials_path, project=settings.firebase_project_id)
     store = FirestoreStore(db)
 else:
     store = DemoStore()

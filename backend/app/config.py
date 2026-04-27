@@ -57,8 +57,8 @@ def get_settings() -> Settings:
     )
 
     return Settings(
-        google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT"),
-        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", os.getenv("GCP_REGION", "global")),
+        google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT", os.getenv("FIREBASE_PROJECT_ID")),
+        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
         upload_bucket=os.getenv("UPLOAD_BUCKET"),
         local_upload_dir=root / os.getenv("LOCAL_UPLOAD_DIR", "uploads"),
         vertex_fast_model=os.getenv("VERTEX_MODEL_FAST", "gemini-2.5-flash"),

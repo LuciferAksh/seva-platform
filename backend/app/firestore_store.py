@@ -123,14 +123,33 @@ class FirestoreStore:
         return volunteer
 
     def get_matches(self, need_id: str) -> list[MatchRecommendation]:
+        # 1. Check cache first
+        match_ref = self.db.collection('need_matches').document(need_id)
+        match_doc = match_ref.get()
+        if match_doc.exists:
+            data = match_doc.to_dict()
+            if "matches" in data:
+                from .models import MatchRecommendation
+                return [MatchRecommendation(**m) for m in data["matches"]]
+
+        # 2. Compute live if not cached
         doc = self.db.collection('needs').document(need_id).get()
         if not doc.exists:
             return []
         need = NeedReport(**doc.to_dict())
 
         volunteers = self.list_volunteers()
-        matches = [score_volunteer(need, volunteer) for volunteer in volunteers]
-        return sorted(matches, key=lambda item: item.score, reverse=True)
+        from .matching import rank_volunteers
+        matches = rank_volunteers(need, volunteers)
+        
+        # 3. Save to cache
+        try:
+            match_ref.set({"matches": [m.model_dump() for m in matches]})
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to cache matches: {e}")
+            
+        return matches
 
     def list_assignments(self, volunteer_id: str | None = None) -> list[AssignmentRecord]:
         if volunteer_id is None:
@@ -183,11 +202,32 @@ class FirestoreStore:
             match_reason=match_reason,
         )
         self.db.collection('assignments').document(assignment.id).set(assignment.model_dump(mode='json'))
+
+        # TRIGGER EMAIL: Mission Assigned
+        try:
+            vol_data = vol_doc.to_dict()
+            self.db.collection('mail').add({
+                "to": vol_data.get('email'),
+                "message": {
+                    "subject": f"🚨 SEVA Mission: {need_doc.to_dict().get('extraction',{}).get('location_label')}",
+                    "html": f"""
+                        <h3>New Mission Assigned</h3>
+                        <p>Hello {vol_data.get('name')},</p>
+                        <p>You have been assigned to a new emergency mission in <b>{need_doc.to_dict().get('extraction',{}).get('location_label')}</b>.</p>
+                        <p><b>Summary:</b> {need_doc.to_dict().get('extraction',{}).get('summary')}</p>
+                        <p>Please open the SEVA Console for details and navigation.</p>
+                    """
+                }
+            })
+        except Exception as e:
+            logging.error(f"Failed to queue assignment email: {e}")
+
         return assignment
 
     def mark_complete(self, need_id: str, volunteer_id: str, notes: str, media_uri: str | None = None, verified_people: int | None = None, verification_reasoning: str | None = None) -> CompletionLog | None:
         need_ref = self.db.collection('needs').document(need_id)
-        if not need_ref.get().exists:
+        need_get = need_ref.get()
+        if not need_get.exists:
             return None
         need_ref.update({'status': 'completed'})
 
@@ -198,6 +238,28 @@ class FirestoreStore:
 
         completion = CompletionLog(need_id=need_id, volunteer_id=volunteer_id, notes=notes, media_uri=media_uri, verified_people=verified_people, verification_reasoning=verification_reasoning)
         self.db.collection('completions').document(completion.id).set(completion.model_dump(mode='json'))
+
+        # TRIGGER EMAIL: Mission Acknowledged
+        try:
+            vol_doc = self.db.collection('volunteers').document(volunteer_id).get()
+            if vol_doc.exists:
+                vol_data = vol_doc.to_dict()
+                self.db.collection('mail').add({
+                    "to": vol_data.get('email'),
+                    "message": {
+                        "subject": "✅ SEVA Impact Verified",
+                        "html": f"""
+                            <h3>Thank You, {vol_data.get('name')}!</h3>
+                            <p>Your mission completion has been successfully processed.</p>
+                            <p><b>AI Verification:</b> {verified_people} people helped.</p>
+                            <p><b>Reasoning:</b> {verification_reasoning}</p>
+                            <p>Your contribution has been recorded in the Impact Dashboard.</p>
+                        """
+                    }
+                })
+        except Exception as e:
+            logging.error(f"Failed to queue completion email: {e}")
+
         return completion
 
     def summary(self) -> DashboardSummary:

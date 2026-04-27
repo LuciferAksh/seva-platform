@@ -78,6 +78,17 @@ const STYLES = `
   .dark-tiles img.leaflet-tile { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important; }
   .dark-tiles .leaflet-container { background: #04080D !important; }
   .light-tiles img.leaflet-tile { filter: none !important; }
+  
+  @media (max-width: 768px) {
+    .hide-mobile { display: none !important; }
+    .grid-mobile-stack { grid-template-columns: 1fr !important; }
+    .auth-modal-content { width: 95% !important; padding: 16px !important; }
+    header { padding: 10px !important; height: auto !important; flex-wrap: wrap; }
+    .header-left { margin-right: 0 !important; width: 100%; justify-content: space-between; margin-bottom: 10px; }
+    .header-nav { width: 100%; justify-content: space-between; overflow-x: auto; padding-bottom: 4px; }
+    .header-nav button { flex: 1; justify-content: center; }
+    .desktop-only-text { display: none; }
+  }
 `;
 
 // ═══════════════════════════════════════════════════════════
@@ -320,7 +331,7 @@ function FieldView({ onSubmit }: { onSubmit:(text:string, file:File|null, mode:'
             </span>
           </div>
           <p style={{ fontSize:14, lineHeight:1.6, color:C.text, marginBottom:12 }}>{result.extraction.summary}</p>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:8 }}>
             {result.extraction.location_label && <div style={{ background:C.bg3, borderRadius:6, padding:'8px 10px' }}>
               <div style={{ fontSize:9, color:C.text2, fontFamily:'Space Mono', marginBottom:3 }}>LOCATION</div>
               <div style={{ fontSize:12, color:C.text }}>{result.extraction.location_label}</div>
@@ -349,7 +360,7 @@ function FieldView({ onSubmit }: { onSubmit:(text:string, file:File|null, mode:'
       <label>Reporter Name: <input value={reporterName} onChange={e=>setReporterName(e.target.value)} /></label>
 
       {!mode && !loading && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, animation:'fadeUp .35s ease' }}>
+        <div className="grid-mobile-stack" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(100px, 1fr))', gap:10, animation:'fadeUp .35s ease' }}>
           {[
             { id:'voice', emoji:'🎙️', label:'Voice note', sub:'Hindi / English' },
             { id:'text',  emoji:'✍️', label:'Type report', sub:'Any language'   },
@@ -504,10 +515,10 @@ function OpsView({ needs, volunteers, newNeed, loadMatchesForNeed, assignVolunte
   }
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:14, height:'calc(100vh - 112px)' }}>
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))', gap:14, height:'calc(100vh - 112px)' }}>
       {/* LEFT: Map + stats */}
       <div style={{ display:'flex', flexDirection:'column', gap:10, overflow:'hidden' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(60px, 1fr))', gap:8 }}>
           {[
             { label:'OPEN', val:stats.open, color:C.danger, icon:'●' },
             { label:'ASSIGNED', val:stats.assigned, color:C.warn, icon:'◐' },
@@ -590,6 +601,13 @@ function OpsView({ needs, volunteers, newNeed, loadMatchesForNeed, assignVolunte
                 <span>📍 {selected.extraction?.location_label}</span>
                 {selected.extraction?.people_affected && <span>👥 {selected.extraction.people_affected} people</span>}
               </div>
+              
+              {selected.extraction?.required_skills && selected.extraction.required_skills.length > 0 && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:10, alignItems:'center' }}>
+                  <span style={{ fontSize:10, color:C.text2, padding:'3px 0' }}>🛠️ REQUIRED SKILLS:</span>
+                  {selected.extraction.required_skills.map((s:string, i:number) => <span key={i} style={{ background:C.bg3, border:`1px solid ${C.ai}44`, color:C.ai, fontSize:10, padding:'2px 6px', borderRadius:4, fontFamily:'Space Mono' }}>{s}</span>)}
+                </div>
+              )}
               
               {selected.extraction?.suggested_supplies && selected.extraction.suggested_supplies.length > 0 && (
                 <details style={{ background:C.bg2, borderRadius:6, marginBottom:10, border:`1px solid ${C.border}`, overflow:'hidden' }}>
@@ -695,7 +713,7 @@ function ImpactView({ summary, needs, isAdmin }: { summary: Summary; needs: Need
         )}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10, marginBottom:20 }}>
         {BIG_STATS.map((s,i) => (
           <div key={s.label} style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, padding:'18px 20px',
             animation:`fadeUp .3s ease ${i*.06}s both` }}>
@@ -787,12 +805,14 @@ function VolunteerConsole({ missions, completeMission, volunteerName, volunteerS
                  </div>
                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
                    <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ flex: 1, padding: 8, fontSize: 12, background: 'transparent', border: `1px dashed ${C.border}` }} />
-                   <button onClick={() => {
-                     completeMission(m.need.id, m.assignment.volunteer_id, note, file);
-                     setFile(null);
-                   }}
-                     style={{ padding:'10px 16px', borderRadius:8, border:'none', background:C.accent, color:'#000', fontWeight:600, cursor:'pointer' }}>
-                     Mark Complete
+                   <button 
+                     disabled={!file}
+                     onClick={() => {
+                       completeMission(m.need.id, m.assignment.volunteer_id, note, file);
+                       setFile(null);
+                     }}
+                     style={{ padding:'10px 16px', borderRadius:8, border:'none', background: file ? C.accent : C.bg3, color: file ? '#000' : C.text2, fontWeight:600, cursor: file ? 'pointer' : 'not-allowed' }}>
+                     {file ? 'Mark Complete' : '📸 Photo Required'}
                    </button>
                  </div>
                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${m.need.extraction.coordinates.lat},${m.need.extraction.coordinates.lng}`} target="_blank" rel="noopener noreferrer" style={{ display:'block', textAlign:'center', marginTop:10, padding:'10px 16px', borderRadius:8, background:C.info, color:'#000', fontWeight:600, textDecoration:'none' }}>🗺️ Navigate via Google Maps</a>
@@ -867,27 +887,46 @@ export default function App() {
   const [volunteerMissions, setVolunteerMissions] = useState<any[]>([]);
   
   // Auth state mapping
-  const [adminEmail, setAdminEmail] = useState("coordinator@seva.org");
-  const [adminPassword, setAdminPassword] = useState("demo-access");
-  const [volunteerEmail, setVolunteerEmail] = useState("asha@seva.org");
-  const [volunteerPassword, setVolunteerPassword] = useState("demo-access");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [volunteerEmail, setVolunteerEmail] = useState("");
+  const [volunteerPassword, setVolunteerPassword] = useState("");
   const [signupForm, setSignupForm] = useState<VolunteerSignupInput>({ name:"", email:"", phone:"", locality:"", skills:[], languages:[] });
   const [signupPassword, setSignupPassword] = useState("");
 
+  const [authUser, setAuthUser] = useState<any>(null);
+
   useEffect(() => {
-    observeAuthState((user) => {
-      if (!user) { setSession(null); }
-      else {
-        if (isAdminEmail(user.email||'')) {
-          setSession({ role: 'admin', name: user.displayName || 'Admin', email: user.email||'' });
+    const unsub = observeAuthState((user) => {
+      setAuthUser(user);
+    });
+    if (unsub) return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      setSession(null);
+    } else {
+      if (isAdminEmail(authUser.email||'')) {
+        if (!isAdminPath) {
+          setSession(null);
         } else {
-          // find volunteer map
-          const vol = volunteers.find(v => v.email?.toLowerCase() === user.email?.toLowerCase());
+          setSession({ role: 'admin', name: authUser.displayName || 'Admin', email: authUser.email||'' });
+        }
+      } else {
+        if (isAdminPath) {
+          // Volunteer trying to access /admin path.
+          // Do not load their volunteer profile here.
+          setSession(null);
+        } else if (volunteers.length > 0) {
+          const vol = volunteers.find(v => v.email?.toLowerCase() === authUser.email?.toLowerCase());
           if (vol) setSession({ role: 'volunteer', name: vol.name, email: vol.email||'', volunteerId: vol.id });
         }
       }
-    });
-  }, [volunteers]);
+    }
+  }, [authUser, volunteers, isAdminPath]);
+
+  // Removed the other useEffect since logic is now handled above.
 
   async function refreshDashboard() {
     try {
@@ -907,16 +946,18 @@ export default function App() {
 
   async function loadVolunteerMissions(volunteerId: string) {
     const activeNeeds = needs.filter((need) => need.status !== "completed");
-    const missionCandidates = await Promise.all(
-      activeNeeds.map(async (need) => {
-        let matches = matchesByNeed[need.id];
-        if (!matches) { matches = await fetchMatches(need.id); setMatchesByNeed(c => ({...c, [need.id]: matches})); }
-        const match = matches.find((entry) => entry.volunteer_id === volunteerId);
-        if (!match) return null;
-        const assignment = assignments.find((entry) => entry.need_id === need.id && entry.volunteer_id === volunteerId);
-        return { need, match, assignment };
-      })
-    );
+    
+    // Fast Path: Do not DDoSing the API from the volunteer view.
+    // We only rely on assignments and cached matches from the admin.
+    const missionCandidates = activeNeeds.map((need) => {
+      const assignment = assignments.find((entry) => entry.need_id === need.id && entry.volunteer_id === volunteerId);
+      const matches = matchesByNeed[need.id] || [];
+      const match = matches.find((entry) => entry.volunteer_id === volunteerId);
+      
+      if (!match && !assignment) return null;
+      return { need, match: match || { score: assignment ? 1.0 : 0, explanation: assignment ? "Assigned by Coordinator" : "Recommended for this mission" }, assignment };
+    });
+
     const nextMissions = missionCandidates.filter(Boolean);
     nextMissions.sort((left:any, right:any) => {
       if (left.assignment && !right.assignment) return -1;
@@ -1045,24 +1086,24 @@ export default function App() {
       
       {/* Header */}
       <header style={{ padding:'0 20px', background:C.bg1, borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', height:52, flexShrink:0 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginRight:32 }}>
+        <div className="header-left" style={{ display:'flex', alignItems:'center', gap:10, marginRight:32 }}>
           <div style={{ width:30, height:30, borderRadius:7, background:`linear-gradient(135deg, ${C.accent}, #00B07A)`,
             display:'flex', alignItems:'center', justifyContent:'center', fontSize:14,
             boxShadow:`0 0 12px ${C.accentGlow}` }}>⬡</div>
           <span style={{ fontSize:16, fontWeight:800, fontFamily:'Syne', color:C.text, letterSpacing:.5 }}>SEVA</span>
-          <span style={{ fontSize:9, color:C.text2, fontFamily:'Space Mono', borderLeft:`1px solid ${C.border}`, paddingLeft:10, letterSpacing:.5 }}>SCALABLE EMERGENCY VOLUNTEER ACTIVATOR</span>
+          <span className="hide-mobile" style={{ fontSize:9, color:C.text2, fontFamily:'Space Mono', borderLeft:`1px solid ${C.border}`, paddingLeft:10, letterSpacing:.5 }}>SCALABLE EMERGENCY VOLUNTEER ACTIVATOR</span>
           {isOffline && <span style={{ marginLeft: 10, background: C.warn, color: '#000', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 'bold' }}>OFFLINE</span>}
           {pendingSync > 0 && <span style={{ marginLeft: 10, background: C.ai, color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 'bold' }}>{pendingSync} PENDING SYNC</span>}
         </div>
 
-        <div style={{ display:'flex', gap:2, position:'relative' }}>
+        <div className="header-nav" style={{ display:'flex', gap:2, position:'relative' }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setView(t.id)}
               style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 14px', borderRadius:7, border:'none',
                 background: view===t.id ? C.bg3 : 'transparent', color: view===t.id ? C.text : C.text2,
                 cursor:'pointer', fontSize:13, fontWeight: view===t.id?500:400, transition:'all .15s' }}>
               <span>{t.emoji}</span>
-              <span>{t.label}</span>
+              <span className={view===t.id ? '' : 'hide-mobile'}>{t.label}</span>
               {view===t.id && t.id==='ops' && <LiveDot size={6} />}
             </button>
           ))}
@@ -1071,7 +1112,7 @@ export default function App() {
         <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:12 }}>
           {session ? (
             <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-               <span style={{fontSize:12, color:C.text2}}>{session.name} ({session.role})</span>
+               <span className="hide-mobile" style={{fontSize:12, color:C.text2}}>{session.name} ({session.role})</span>
                <button onClick={()=>signOutUser()} style={{background:'none', border:`1px solid ${C.border}`, color:C.text, padding:'4px 10px', borderRadius:6, fontSize:11, cursor:'pointer'}}>Logout</button>
             </div>
           ) : (
@@ -1128,7 +1169,6 @@ export default function App() {
                <form onSubmit={handleLoginVolunteer}>
                  <label>Volunteer Email <input value={volunteerEmail} onChange={e=>setVolunteerEmail(e.target.value)} /></label>
                  <label>Password <input type="password" value={volunteerPassword} onChange={e=>setVolunteerPassword(e.target.value)} /></label>
-                 <p style={{fontSize: 11, color:C.text2, marginBottom:12}}>Demo profiles available: {volunteers.map((volunteer) => volunteer.email).filter(Boolean).join(", ")}</p>
                  <button type="submit" style={{ width:'100%', padding:12, borderRadius:8, border:'none', background:C.accent, color:'#000', fontWeight:600, cursor:'pointer', marginTop:8 }}>Enter Volunteer Console</button>
                </form>
              )}

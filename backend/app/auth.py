@@ -25,6 +25,7 @@ class AuthContext:
     uid: str
     auth_mode: str
     email: str | None = None
+    is_admin: bool = False
 
 
 @lru_cache(maxsize=1)
