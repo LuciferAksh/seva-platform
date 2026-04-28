@@ -139,7 +139,7 @@ function Toast({ msg, onClose }: {msg:string; onClose:()=>void}) {
 // ═══════════════════════════════════════════════════════════
 // SVG MAP
 // ═══════════════════════════════════════════════════════════
-function SevaMap({ needs, volunteers, onSelect, selected, newNeed, showAllFacilities=true }: any) {
+function SevaMap({ needs, volunteers, onSelect, selected, showAllFacilities=true }: any) {
   const [mapStyle, setMapStyle] = useState<'dark' | 'satellite' | 'heatmap'>('satellite');
   const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
 
@@ -731,7 +731,7 @@ function ImpactView({ summary, needs, isAdmin }: { summary: Summary; needs: Need
 // ═══════════════════════════════════════════════════════════
 // VIEW: VOLUNTEER CONSOLE
 // ═══════════════════════════════════════════════════════════
-function VolunteerConsole({ missions, completeMission, volunteerName, volunteerStats, volunteers, session }: any) {
+function VolunteerConsole({ missions, completeMission, volunteerName, volunteerStats, volunteers }: any) {
   const [note, setNote] = useState("Visited site and support delivered.");
   const [file, setFile] = useState<File | null>(null);
 
@@ -1037,15 +1037,22 @@ export default function App() {
     }
     try { await signInWithEmail(volunteerEmail, volunteerPassword); setShowAuthModal(false); } catch(err:any) { alert(err.message); }
   }
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   async function handleSignupVolunteer(e: FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await signUpVolunteerWithEmail(signupForm.email, signupPassword, signupForm.name);
       await createVolunteer(signupForm);
-      await refreshDashboard();
       setShowAuthModal(false);
-      setToast("Verification email sent! Please check your inbox before logging in.");
-    } catch(err:any) { alert(err.message); }
+      setToast("Verification email sent! Please check your inbox.");
+      setTimeout(() => refreshDashboard(), 1500);
+    } catch(err:any) { 
+      alert(err.message); 
+      setIsSubmitting(false);
+    }
   }
 
   const TABS = [

@@ -75,11 +75,15 @@ export async function signUpVolunteerWithEmail(
   if (displayName) {
     await updateProfile(credential.user, { displayName });
   }
-  await sendEmailVerification(credential.user);
-  await signOut(auth); // Prevent auto-login after signup
+
+  await sendEmailVerification(credential.user, {
+    url: `${window.location.origin}/verify-email`,
+    handleCodeInApp: true,
+  });
+
+  await signOut(auth);
   return credential.user;
 }
-
 export async function signOutUser(): Promise<void> {
   if (!auth) return;
   await signOut(auth);
