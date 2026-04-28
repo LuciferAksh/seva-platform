@@ -14,7 +14,7 @@
 ## 🚀 Key Innovations (The "Wow" Factor)
 
 ### 1. 🧠 AI-Driven Logistical Radar
-Unlike static maps, SEVA acts as a logistical brain. Using **Gemini 1.5 Flash**, the system performs **Deep Spatial Reasoning** on field reports.
+Unlike static maps, SEVA acts as a logistical brain. Using **Gemini 2.5 Flash**, the system performs **Deep Spatial Reasoning** on field reports.
 *   **Predictive Supply Lists**: If a fire is reported, the AI automatically predicts the need for "Burn cream", "Sterile bandages", and "Fire extinguishers".
 *   **Automated Facility Discovery**: Integrated with the **Google Maps Places API**, the system automatically identifies and routes volunteers to the 3 nearest functional hospitals or pharmacies relative to the disaster GPS coordinates.
 
@@ -41,7 +41,7 @@ Disaster zones have zero connectivity. SEVA is built as a **Progressive Web App*
 *   **Backend**: FastAPI (Python 3.14)
 *   **Database**: Google Cloud Firestore (Native Mode)
 *   **Auth**: Firebase Authentication (Custom Bot-Proof React Router Flow)
-*   **AI Engine**: Vertex AI (Gemini 1.5 Flash)
+*   **AI Engine**: Vertex AI (Gemini 2.5 Flash & Pro)
 *   **Maps**: React-Leaflet + Official Google Maps API (SOI Compliant Borders)
 *   **Storage**: Google Cloud Storage (Media handling)
 

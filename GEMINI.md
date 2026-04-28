@@ -6,7 +6,7 @@ This file serves as the foundational context for Gemini CLI. The instructions he
 - **Frontend**: React (TypeScript), Vite, Leaflet (Map), idb-keyval (Offline Storage).
 - **Backend**: Python (FastAPI), Uvicorn.
 - **Database**: Firebase Firestore (Production) / DemoStore (Local Mock).
-- **AI Engine**: Google Vertex AI (Gemini 1.5 Flash).
+- **AI Engine**: Google Vertex AI (Gemini 2.5 Flash).
 - **Hosting**: Firebase Hosting (Frontend), Google Cloud Run (Backend).
 
 ## 🌍 Deployment Details
