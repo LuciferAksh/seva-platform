@@ -151,7 +151,7 @@ class GoogleIntelligencePipeline:
         prompt = (
             "You are helping an NGO operations platform structure community reports. "
             "Read the field report and return JSON only. "
-            "Infer the most likely category, urgency from 1 to 5, people affected, "
+            "Infer the most likely category, urgency from 1 to 10 (where 10 is catastrophic/loss of life and 1 is minor), people affected, "
             "best locality label, exact GPS coordinates (lat and lng) for that location as floats, required volunteer skills, and a short operational summary. "
             "Also deeply analyze the incident and provide an EXTENSIVE, hyper-specific list of 'suggested_supplies' (e.g., instead of just 'medical', specify exactly: 'Burn cream', 'Sterile bandages', 'Antibiotics', 'Fire extinguisher', 'Blankets', 'Water purification tablets', etc.). "
             "If a specific facility is needed, strictly provide 'facility_type_needed' (must be exactly 'hospital', 'pharmacy', 'medical_clinic', 'police', 'fire_station', or null).\n\n"

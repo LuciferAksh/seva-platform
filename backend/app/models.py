@@ -24,7 +24,7 @@ class NearbyFacility(BaseModel):
 
 class NeedExtraction(BaseModel):
     category: NeedCategory
-    urgency_level: int = Field(ge=1, le=5)
+    urgency_level: int = Field(ge=1, le=10)
     people_affected: int = Field(ge=1)
     location_label: str
     required_skills: list[str]
