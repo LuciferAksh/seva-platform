@@ -281,6 +281,7 @@ function FieldView({ onSubmit }: { onSubmit:(text:string, file:File|null, mode:'
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Need|null>(null);
   const [error, setError] = useState<string|null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   
   const [recording, setRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -382,10 +383,23 @@ function FieldView({ onSubmit }: { onSubmit:(text:string, file:File|null, mode:'
 
   return (
     <div style={{ maxWidth:480, margin:'0 auto' }}>
-      <div style={{ marginBottom:28, animation:'fadeUp .3s ease' }}>
-        <h2 style={{ fontSize:22, fontWeight:700, fontFamily:'Syne', color:C.text }}>Report a community need</h2>
+      <div style={{ marginBottom:28, animation:'fadeUp .3s ease', position: 'relative' }}>
+        <h2 style={{ fontSize:22, fontWeight:700, fontFamily:'Syne', color:C.text, paddingRight: 32 }}>Report a community need</h2>
+        <button onClick={() => setShowHelp(!showHelp)} style={{ position:'absolute', top: 0, right: 0, background: showHelp ? C.accent : C.bg3, border: `1px solid ${showHelp ? C.accent : C.border}`, color: showHelp ? '#000' : C.text2, borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontWeight: 'bold' }}>?</button>
         <p style={{ fontSize:13, color:C.text2, marginTop:6 }}>Voice note in Hindi or English · photo · typed report — AI understands all three</p>
       </div>
+
+      {showHelp && (
+        <div style={{ background: C.bg2, border: `1px solid ${C.accent}44`, borderLeft: `3px solid ${C.accent}`, borderRadius: 8, padding: 16, marginBottom: 20, animation: 'fadeUp .2s ease' }}>
+          <h4 style={{ fontSize: 14, color: C.text, marginBottom: 10 }}>How to log an incident:</h4>
+          <ol style={{ fontSize: 13, color: C.text2, paddingLeft: 20, lineHeight: 1.6, margin: 0 }}>
+            <li style={{ marginBottom: 6 }}>Choose a reporting mode: <strong>Voice</strong>, <strong>Text</strong>, or <strong>Photo</strong>.</li>
+            <li style={{ marginBottom: 6 }}>Record your surroundings, describe the emergency, or upload a picture of a handwritten survey.</li>
+            <li style={{ marginBottom: 6 }}>Tap <strong style={{ color: C.ai }}>Submit to SEVA AI</strong>.</li>
+            <li>Our AI automatically extracts the GPS location, category, urgency level, and predicts the required supplies!</li>
+          </ol>
+        </div>
+      )}
       
       <label>Reporter Name: <input value={reporterName} onChange={e=>setReporterName(e.target.value)} /></label>
 
