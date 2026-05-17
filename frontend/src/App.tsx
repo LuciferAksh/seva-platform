@@ -93,6 +93,36 @@ const STYLES = `
 
 // ═══════════════════════════════════════════════════════════
 // SMALL COMPONENTS
+
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const scaleSize = MAX_WIDTH / img.width;
+        if (scaleSize >= 1) return resolve(file); // Don't scale up
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: file.type }));
+          } else {
+            resolve(file);
+          }
+        }, file.type, 0.7);
+      };
+    };
+  });
+}
+
 // ═══════════════════════════════════════════════════════════
 function LiveDot({ color = C.accent, size = 7 }: {color?:string; size?:number}) {
   return (
@@ -139,7 +169,7 @@ function Toast({ msg, onClose }: {msg:string; onClose:()=>void}) {
 // ═══════════════════════════════════════════════════════════
 // SVG MAP
 // ═══════════════════════════════════════════════════════════
-function SevaMap({ needs, volunteers, onSelect, selected, showAllFacilities=true }: any) {
+function SevaMap({ needs, volunteers, onSelect, selected, showAllFacilities=true }: { needs: Need[], volunteers: Volunteer[], onSelect: Function, selected: Need | null, showAllFacilities?: boolean }) {
   const [mapStyle, setMapStyle] = useState<'dark' | 'satellite' | 'heatmap'>('satellite');
   const [mapTheme, setMapTheme] = useState<'light' | 'dark'>('dark');
 
@@ -485,7 +515,7 @@ function FieldView({ onSubmit }: { onSubmit:(text:string, file:File|null, mode:'
 // ═══════════════════════════════════════════════════════════
 // VIEW: OPS DASHBOARD
 // ═══════════════════════════════════════════════════════════
-function OpsView({ needs, volunteers, newNeed, loadMatchesForNeed, assignVolunteer }: any) {
+function OpsView({ needs, volunteers, loadMatchesForNeed, assignVolunteer }: { needs: Need[], volunteers: Volunteer[], loadMatchesForNeed: Function, assignVolunteer: Function }) {
   const [selected, setSelected] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [loadingMatch, setLoadingMatch] = useState(false);
@@ -546,7 +576,7 @@ function OpsView({ needs, volunteers, newNeed, loadMatchesForNeed, assignVolunte
         </div>
 
         <div style={{ flex:1, minHeight:0 }}>
-          <SevaMap needs={filtered} volunteers={volunteers} onSelect={handleSelectNeed} selected={selected} newNeed={newNeed} />
+          <SevaMap needs={filtered} volunteers={volunteers} onSelect={handleSelectNeed} selected={selected} />
         </div>
       </div>
 
@@ -558,6 +588,7 @@ function OpsView({ needs, volunteers, newNeed, loadMatchesForNeed, assignVolunte
               <span style={{ fontSize:13, fontWeight:600, fontFamily:'Syne', color:C.text }}>Live Needs</span>
             </div>
             <div style={{ flex:1, overflow:'auto' }}>
+              {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: C.text2, fontSize: 13 }}>No active incidents. The map is clear.</div>}
               {filtered.sort((a:any,b:any)=>(b.extraction?.urgency_level||0)-(a.extraction?.urgency_level||0)).map((need:any, i:number) => {
                 const cat = getCat(need.extraction?.category);
                 return (
@@ -731,9 +762,9 @@ function ImpactView({ summary, needs, isAdmin, isLoading }: { summary: Summary; 
 // ═══════════════════════════════════════════════════════════
 // VIEW: VOLUNTEER CONSOLE
 // ═══════════════════════════════════════════════════════════
-function VolunteerConsole({ missions, completeMission, volunteerName, volunteerStats, volunteers }: any) {
-  const [note, setNote] = useState("Visited site and support delivered.");
-  const [file, setFile] = useState<File | null>(null);
+function VolunteerConsole({ missions, completeMission, volunteerName, volunteerStats, volunteers }: { missions: any[], completeMission: Function, volunteerName?: string, volunteerStats?: any, volunteers: Volunteer[] }) {
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<Record<string, File | null>>({});
 
   const handleSpeak = (text: string) => {
     if ('speechSynthesis' in window) {
@@ -761,7 +792,7 @@ function VolunteerConsole({ missions, completeMission, volunteerName, volunteerS
 
       
       <div style={{ height:300, marginBottom:20, borderRadius:10, overflow:'hidden', border:`1px solid ${C.border}`, boxShadow:`0 0 16px ${C.accentGlow}` }}>
-        <SevaMap needs={missions.map((m:any) => m.need)} volunteers={volunteers || []} onSelect={()=>{}} selected={null} newNeed={null} />
+        <SevaMap needs={missions.map((m:any) => m.need)} volunteers={volunteers || []} onSelect={()=>{}} selected={null} />
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         {missions.length === 0 && <p style={{color:C.text2, fontSize:14}}>No missions available right now.</p>}
@@ -801,18 +832,18 @@ function VolunteerConsole({ missions, completeMission, volunteerName, volunteerS
              {m.assignment ? (
                <div style={{ display:'flex', flexDirection: 'column', gap:10 }}>
                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                   <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Completion note..." style={{flex:1, margin:0}} />
+                   <input value={notes[m.need.id] || "Visited site and support delivered."} onChange={e=>setNotes({...notes, [m.need.id]: e.target.value})} placeholder="Completion note..." style={{flex:1, margin:0}} />
                  </div>
                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-                   <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ flex: 1, padding: 8, fontSize: 12, background: 'transparent', border: `1px dashed ${C.border}` }} />
+                   <input type="file" accept="image/*" onChange={(e) => setFiles({...files, [m.need.id]: e.target.files?.[0] || null})} style={{ flex: 1, padding: 8, fontSize: 12, background: 'transparent', border: `1px dashed ${C.border}` }} />
                    <button 
-                     disabled={!file}
+                     disabled={!files[m.need.id]}
                      onClick={() => {
-                       completeMission(m.need.id, m.assignment.volunteer_id, note, file);
-                       setFile(null);
+                       completeMission(m.need.id, m.assignment.volunteer_id, notes[m.need.id] || "Visited site and support delivered.", files[m.need.id]);
+                       setFiles({...files, [m.need.id]: null});
                      }}
-                     style={{ padding:'10px 16px', borderRadius:8, border:'none', background: file ? C.accent : C.bg3, color: file ? '#000' : C.text2, fontWeight:600, cursor: file ? 'pointer' : 'not-allowed' }}>
-                     {file ? 'Mark Complete' : '📸 Photo Required'}
+                     style={{ padding:'10px 16px', borderRadius:8, border:'none', background: files[m.need.id] ? C.accent : C.bg3, color: files[m.need.id] ? '#000' : C.text2, fontWeight:600, cursor: files[m.need.id] ? 'pointer' : 'not-allowed' }}>
+                     {files[m.need.id] ? 'Mark Complete' : '📸 Photo Required'}
                    </button>
                  </div>
                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${m.need.extraction.coordinates.lat},${m.need.extraction.coordinates.lng}`} target="_blank" rel="noopener noreferrer" style={{ display:'block', textAlign:'center', marginTop:10, padding:'10px 16px', borderRadius:8, background:C.info, color:'#000', fontWeight:600, textDecoration:'none' }}>🗺️ Navigate via Google Maps</a>
@@ -845,17 +876,28 @@ export default function App() {
   useEffect(() => {
     const handleOnline = async () => {
       setIsOffline(false);
-      const queue: any[] = await get('offline-queue') || [];
+      let queue: any[] = await get('offline-queue') || [];
       if (queue.length > 0) {
         setToast(`Syncing ${queue.length} offline reports...`);
-        for (const req of queue) {
+        let retries = 3;
+        while (retries > 0 && queue.length > 0) {
           try {
+            const req = queue[0];
             await handleReporterSubmit(req.text, req.file, req.mode, req.reporterName, true);
-          } catch(e) {}
+            queue.shift();
+            await set('offline-queue', queue);
+          } catch(e) {
+            retries--;
+            await new Promise(r => setTimeout(r, 2000));
+          }
         }
-        await set('offline-queue', []);
-        setPendingSync(0);
-        setToast('Offline data synced successfully!');
+        if (queue.length === 0) {
+          setPendingSync(0);
+          setToast('Offline data synced successfully!');
+        } else {
+          setPendingSync(queue.length);
+          setToast('Some offline data failed to sync. Will retry later.');
+        }
       }
     };
     const handleOffline = () => setIsOffline(true);
@@ -880,7 +922,6 @@ export default function App() {
   const [matchesByNeed, setMatchesByNeed] = useState<Record<string, Match[]>>({});
   const [session, setSession] = useState<{role: 'admin'|'volunteer', name:string, email:string, volunteerId?:string} | null>(null);
   
-  const [newNeed, setNewNeed] = useState<Need | null>(null);
   const [toast, setToast] = useState<string|null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [accessTab, setAccessTab] = useState<'admin'|'volunteer-login'|'volunteer-signup'>(window.location.pathname === "/admin" ? 'admin' : 'volunteer-login');
@@ -986,11 +1027,10 @@ export default function App() {
         extraction: { category: 'other', urgency_level: 1, people_affected: 1, location_label: 'Pending sync', coordinates: null as any, required_skills: [], summary: 'Pending offline sync...', suggested_supplies: [], facility_type_needed: null, nearby_facilities: [] } 
       } as unknown as Need; // Mock response
     }
-    const created = await createUploadReport({ source_type: mode, text, reporter_name: reporterName, file });
+    const compressedFile = file ? await compressImage(file) : null;
+    const created = await createUploadReport({ source_type: mode, text, reporter_name: reporterName, file: compressedFile });
     setNeeds(prev => [created, ...prev]);
-    setNewNeed(created);
-    setTimeout(() => setNewNeed(null), 6000);
-    setToast(`✓ Need logged: ${created.extraction.category} in ${created.extraction.location_label}. Visible on ops map.`);
+            setToast(`✓ Need logged: ${created.extraction.category} in ${created.extraction.location_label}. Visible on ops map.`);
     refreshDashboard();
     return created;
   }
@@ -1010,7 +1050,8 @@ export default function App() {
   async function completeMission(needId: string, volunteerId: string, notes: string, file: File | null = null) {
     try {
       setToast("Submitting completion... AI is verifying photo.");
-      const res = await createCompletion({ need_id: needId, volunteer_id: volunteerId, notes, file });
+      const compressedFile = file ? await compressImage(file) : null;
+      const res = await createCompletion({ need_id: needId, volunteer_id: volunteerId, notes, file: compressedFile });
       if (res && res.verification_reasoning) {
         setToast(`Verified ${res.verified_people} people: ${res.verification_reasoning.substring(0, 60)}...`);
       } else {
@@ -1135,9 +1176,9 @@ export default function App() {
       <main style={{ flex:1, overflow:'auto', padding:16 }}>
         {toast && <Toast msg={toast} onClose={()=>setToast(null)} />}
         {view==='field'     && <FieldView onSubmit={handleReporterSubmit} />}
-        {view==='ops'       && <OpsView needs={needs} volunteers={volunteers} newNeed={newNeed} loadMatchesForNeed={loadMatchesForNeed} assignVolunteer={assignVol} />}
+        {view==='ops'       && <OpsView needs={needs} volunteers={volunteers} loadMatchesForNeed={loadMatchesForNeed} assignVolunteer={assignVol} />}
         {view==='impact'    && <ImpactView summary={summary} needs={needs} isAdmin={session?.role === 'admin'} isLoading={isDashboardLoading} />}
-        {view==='volunteer' && <VolunteerConsole missions={volunteerMissions} completeMission={completeMission} volunteerName={session?.name} session={session} volunteers={volunteers} volunteerStats={
+        {view==='volunteer' && <VolunteerConsole missions={volunteerMissions} completeMission={completeMission} volunteerName={session?.name} volunteers={volunteers} volunteerStats={
           (session?.volunteerId || (session?.role === "admin" && volunteers.length > 0)) ? {
             completedCount: needs.filter(n => n.status === "completed" && assignments.some(a => a.need_id === n.id && a.volunteer_id === (session?.volunteerId || volunteers[0]?.id))).length,
             peopleHelped: needs.filter(n => n.status === "completed" && assignments.some(a => a.need_id === n.id && a.volunteer_id === (session?.volunteerId || volunteers[0]?.id))).reduce((sum, n) => sum + (n.extraction?.people_affected || 0), 0)
