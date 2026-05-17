@@ -672,7 +672,7 @@ function OpsView({ needs, volunteers, newNeed, loadMatchesForNeed, assignVolunte
 // ═══════════════════════════════════════════════════════════
 // VIEW: IMPACT REPORT
 // ═══════════════════════════════════════════════════════════
-function ImpactView({ summary, needs, isAdmin }: { summary: Summary; needs: Need[]; isAdmin?: boolean }) {
+function ImpactView({ summary, needs, isAdmin, isLoading }: { summary: Summary; needs: Need[]; isAdmin?: boolean; isLoading?: boolean }) {
   const BIG_STATS = [
     { val: summary.active_volunteers, label:'Volunteers Active',    color:C.accent, suffix:'' },
     { val: summary.families_impacted, label:'People Reached',       color:C.info,   suffix:'+' },
@@ -718,8 +718,8 @@ function ImpactView({ summary, needs, isAdmin }: { summary: Summary; needs: Need
           <div key={s.label} style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, padding:'18px 20px',
             animation:`fadeUp .3s ease ${i*.06}s both` }}>
             <div style={{ fontSize:9, fontFamily:'Space Mono', color:C.text2, letterSpacing:1, marginBottom:8 }}>{s.label.toUpperCase()}</div>
-            <div style={{ fontSize:38, fontWeight:800, fontFamily:'Syne', color:s.color, lineHeight:1 }}>
-              {s.val.toLocaleString()}<span style={{ fontSize:22 }}>{s.suffix}</span>
+            <div style={{ fontSize:38, fontWeight:800, fontFamily:'Syne', color:s.color, lineHeight:1, display:'flex', alignItems:'center', height:40 }}>
+              {isLoading ? <Spinner /> : <>{s.val.toLocaleString()}<span style={{ fontSize:22 }}>{s.suffix}</span></>}
             </div>
           </div>
         ))}
@@ -875,6 +875,7 @@ export default function App() {
   const [needs, setNeeds] = useState<Need[]>([]);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [summary, setSummary] = useState<Summary>({ active_needs:0, assigned_needs:0, completed_needs:0, active_volunteers:0, families_impacted:0 });
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [matchesByNeed, setMatchesByNeed] = useState<Record<string, Match[]>>({});
   const [session, setSession] = useState<{role: 'admin'|'volunteer', name:string, email:string, volunteerId?:string} | null>(null);
@@ -932,7 +933,7 @@ export default function App() {
     try {
       const [n, s, v, a] = await Promise.all([ fetchNeeds(), fetchSummary(), fetchVolunteers(), fetchAssignments() ]);
       setNeeds(n); setSummary(s); setVolunteers(v); setAssignments(a);
-    } catch(e) { console.error(e); }
+    } catch(e) { console.error(e); } finally { setIsDashboardLoading(false); }
   }
 
   useEffect(() => { refreshDashboard(); const iv = setInterval(refreshDashboard, 30000); return ()=>clearInterval(iv); }, []);
@@ -1135,7 +1136,7 @@ export default function App() {
         {toast && <Toast msg={toast} onClose={()=>setToast(null)} />}
         {view==='field'     && <FieldView onSubmit={handleReporterSubmit} />}
         {view==='ops'       && <OpsView needs={needs} volunteers={volunteers} newNeed={newNeed} loadMatchesForNeed={loadMatchesForNeed} assignVolunteer={assignVol} />}
-        {view==='impact'    && <ImpactView summary={summary} needs={needs} isAdmin={session?.role === 'admin'} />}
+        {view==='impact'    && <ImpactView summary={summary} needs={needs} isAdmin={session?.role === 'admin'} isLoading={isDashboardLoading} />}
         {view==='volunteer' && <VolunteerConsole missions={volunteerMissions} completeMission={completeMission} volunteerName={session?.name} session={session} volunteers={volunteers} volunteerStats={
           (session?.volunteerId || (session?.role === "admin" && volunteers.length > 0)) ? {
             completedCount: needs.filter(n => n.status === "completed" && assignments.some(a => a.need_id === n.id && a.volunteer_id === (session?.volunteerId || volunteers[0]?.id))).length,
