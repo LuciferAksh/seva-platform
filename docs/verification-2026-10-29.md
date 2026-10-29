@@ -1,5 +1,7 @@
 # Seva implementation verification — 29 October 2026
 
+The later [connected deployment report](connected-deployment-2026-10-29.md) records the live Supabase, Render and Groq acceptance checks. The browser-demo checks below describe the earlier release.
+
 ## Scope
 
 Current source, production frontend build and the published Render browser demo. The tested UI used synthetic/browser-local data. The new Supabase schema and permissions were verified remotely. Connected API flows, Groq inference quality, email delivery and production identity migration are not yet verified.
