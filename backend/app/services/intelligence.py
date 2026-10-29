@@ -39,7 +39,10 @@ class Intelligence:
             'response_format': {'type': 'json_object'}, 'max_completion_tokens': 1500,
         })
         response.raise_for_status()
-        return json.loads(response.json()['choices'][0]['message']['content'])
+        result = json.loads(response.json()['choices'][0]['message']['content'])
+        if not isinstance(result, dict):
+            raise ValueError('AI response must be a JSON object')
+        return result
 
     def structure(self, text):
         if not self.settings.groq_key:

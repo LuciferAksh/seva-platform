@@ -30,7 +30,7 @@ class Settings:
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     from dotenv import load_dotenv
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[1]
     # Deliberately ignore legacy Google .env files.
     load_dotenv(root / '.env.local')
     mode = os.getenv('APP_MODE', 'demo').strip().lower()

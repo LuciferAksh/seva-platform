@@ -52,6 +52,14 @@ Demo data belongs to one browser and origin. A report created on one device does
 
 Secrets belong only in backend environment settings. Never put service-role, Groq, Brevo or Turnstile **secret** keys in `VITE_*`, Git, screenshots or chat. Build-time `VITE_*` values are public. The connector can retrieve publishable project configuration but may not expose the service-role secret; enter that directly in the backend service settings if necessary.
 
+### Check connections before switching the frontend
+
+The ignored `backend/.env.local` file can hold deployment credentials locally. Required for the initial signed-in release: `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY` and `ADMIN_EMAILS`, plus the project URL and exact frontend origin. Public reporting additionally requires the Turnstile widget and secret; do not replace them with test keys on the published site. Public account verification/reset needs approved SMTP configuration in Supabase.
+
+Run `.venv/Scripts/python.exe backend/check_connections.py` from the repository root. It performs read-only Supabase table and private-bucket checks, verifies the configured Groq model IDs against the account's available models, and sends one synthetic water report to validate actual text extraction. It prints pass/fail labels without credentials or provider response bodies. It does not create operational records or send email. Voice/image inference quality, email delivery and full connected browser flows still require separate acceptance checks.
+
+Keep the published frontend in demo mode until the connected API, authentication and public intake checks pass. The deployable backend reads environment variables; its Docker ignore rules exclude local environment files and uploads.
+
 ### Data migration and retirement
 
 The new deployment does not automatically copy Firestore records, Firebase passwords or GCS objects. Export and back up the old data before any cutover. Map volunteer identities and preserve incident IDs. Assignments and completion records are keyed by incident ID in the new repository to enforce one active mission and one current review per incident; retain old IDs in a migration audit. Password migration requires a verified import path or a reset flow. Copy private attachments and rewrite their references. Reconcile totals and file hashes in staging before switching real users.
