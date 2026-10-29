@@ -12,8 +12,8 @@ SourceType = Literal["text", "voice", "image"]
 
 
 class Coordinates(BaseModel):
-    lat: float
-    lng: float
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
 
 class NearbyFacility(BaseModel):
     name: str
@@ -29,7 +29,7 @@ class NeedExtraction(BaseModel):
     location_label: str
     required_skills: list[str]
     summary: str
-    coordinates: Coordinates
+    coordinates: Coordinates | None
     suggested_supplies: list[str] = Field(default_factory=list)
     facility_type_needed: str | None = None
     nearby_facilities: list[NearbyFacility] = Field(default_factory=list)
@@ -43,10 +43,12 @@ class NeedReport(BaseModel):
     extraction: NeedExtraction
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     priority_score: float
-    status: Literal["new", "assigned", "completed"] = "new"
+    status: Literal["new", "assigned", "pending_review", "completed"] = "new"
     media_uri: str | None = None
     source_summary: str | None = None
-    processing_mode: Literal["demo", "google"] = "demo"
+    processing_mode: Literal["demo", "google", "groq", "rules"] = "demo"
+    submitted_by: str | None = None
+    submission_id: str | None = None
 
 
 class Volunteer(BaseModel):
@@ -63,14 +65,14 @@ class Volunteer(BaseModel):
 
 
 class VolunteerSignup(BaseModel):
-    name: str
-    email: str
-    phone: str | None = None
-    locality: str
-    skills: list[str]
-    languages: list[str]
-    lat: float | None = None
-    lng: float | None = None
+    name: str = Field(min_length=1,max_length=100)
+    email: str = Field(min_length=3,max_length=254)
+    phone: str | None = Field(default=None,max_length=30)
+    locality: str = Field(min_length=1,max_length=120)
+    skills: list[str] = Field(min_length=1,max_length=20)
+    languages: list[str] = Field(min_length=1,max_length=20)
+    lat: float | None = Field(default=None,ge=-90,le=90)
+    lng: float | None = Field(default=None,ge=-180,le=180)
 
 
 class MatchRecommendation(BaseModel):
@@ -88,6 +90,7 @@ class CompletionLog(BaseModel):
     media_uri: str | None = None
     verified_people: int | None = None
     verification_reasoning: str | None = None
+    review_status: Literal['pending', 'approved', 'rejected'] = 'pending'
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -112,7 +115,7 @@ class ReportSubmission(BaseModel):
 
 class UploadReportResponse(BaseModel):
     report: NeedReport
-    auth_mode: Literal["anonymous", "firebase"]
+    auth_mode: Literal["demo", "supabase", "firebase"]
 
 
 class DashboardSummary(BaseModel):
@@ -121,3 +124,5 @@ class DashboardSummary(BaseModel):
     completed_needs: int
     active_volunteers: int
     families_impacted: int
+    people_helped: int = 0
+    pending_reviews: int = 0

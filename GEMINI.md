@@ -1,33 +1,22 @@
-# SEVA: Project Standards & Architecture
+# Seva project standards
 
-This file serves as the foundational context for Gemini CLI. The instructions here take precedence over general tool defaults.
+## Current stack
+React + TypeScript + Vite 7; FastAPI; Supabase Postgres/Auth/private Storage; Groq text/vision/Whisper; optional Brevo email. Cloudflare Pages or Render Static Site frontend; Render Free API.
 
-## 🛠 Tech Stack
-- **Frontend**: React (TypeScript), Vite, Leaflet (Map), idb-keyval (Offline Storage).
-- **Backend**: Python (FastAPI), Uvicorn.
-- **Database**: Firebase Firestore (Production) / DemoStore (Local Mock).
-- **AI Engine**: Google Vertex AI (Gemini 2.5 Flash).
-- **Hosting**: Firebase Hosting (Frontend), Google Cloud Run (Backend).
+## Experience boundaries
+- `/`: community reporting, receipt only, no account required.
+- `/admin`: coordinator workspace; connected mode requires verified email and backend `ADMIN_EMAILS` allowlist.
+- `/volunteer`: own missions, profile and evidence.
+- `/verify-email`: Supabase verification/password recovery.
 
-## 🌍 Deployment Details
-- **Backend URL**: `https://seva-backend-1064361639605.asia-south1.run.app`
-- **Frontend URL**: `https://seva-solution-challenge-2026.web.app`
-- **Cloud Run Settings**: Always use `--region asia-south1` and `--allow-unauthenticated`.
-- **CORS**: Production origins are explicitly whitelisted in `backend/app/main.py`.
+## Safety and implementation
+- Demo mode is browser-local synthetic data. Connected mode uses the API and Supabase. Never grant demo sessions access to real data.
+- Keep operational data private. Public intake must fail closed without server-validated Turnstile in connected mode.
+- Completion needs an active owned assignment, an actual photo and coordinator review. AI output is advisory, not proof.
+- Accept confirmed GPS/map pins; do not invent a default location.
+- Do not commit secrets or `.env.local`. `VITE_*` is public. Ignore legacy Google `.env` files in the new backend.
+- Preserve account ownership for offline queues, enforce idempotency, and use revision-checked writes for dispatch/review.
+- Keep maps on compliant tile sources; no offline/bulk prefetch from the public OSM tile service.
+- Build the frontend after changes. Run meaningful backend flow tests after API/store/auth changes.
 
-## 🛡 Security & Auth Rules
-- **Admin Access**: Restricted to whitelisted emails in the `ADMIN_EMAILS` environment variable.
-- **Path Guard**: Admin panel is at `/admin`. Volunteers/Public cannot load profiles on this path.
-- **Session Isolation**: No session leakage between public home page and `/admin` portal.
-- **Credentials**: Never commit `.env` or `secrets/` files. Use `os.getenv("K_SERVICE")` to detect cloud environments.
-
-## 🤖 AI Implementation
-- **Dispatcher**: Uses Gemini for semantic volunteer matching based on skills and GPS distance.
-- **Gatekeeper**: Uses Gemini Vision to audit "Mark Complete" photos. Rejects unrelated or fake images.
-- **Pre-Compute**: New incidents trigger a `BackgroundTasks` matching job to ensure instant dashboard load.
-- **Caching**: Matches are stored in the `need_matches` subcollection to prevent redundant AI costs.
-
-## 🏗 Engineering Standards
-- **Testing**: Always run `npm run build` after frontend changes to verify TypeScript integrity.
-- **Cleanliness**: Keep the root directory free of screenshots and temporary `.py` migration scripts.
-- **Mobile-First**: Maintain the `repeat(auto-fit, minmax(...))` responsive grid layouts.
+Deployment details and environment configuration: `docs/free-stack-deployment.md`. Legacy Google files are references, not active runtime dependencies. The old Google deployment has not been retired automatically.

@@ -17,4 +17,4 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 # Use shell form to allow $PORT substitution from Cloud Run
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --log-level debug
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --log-level info

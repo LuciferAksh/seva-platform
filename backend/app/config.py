@@ -1,76 +1,62 @@
 from __future__ import annotations
-
 import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-
-def _bool_env(name: str, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
 @dataclass(frozen=True)
 class Settings:
-    google_cloud_project: str | None
-    google_cloud_location: str
-    upload_bucket: str | None
-    local_upload_dir: Path
-    vertex_fast_model: str
-    vertex_pro_model: str
-    speech_language_codes: tuple[str, ...]
+    mode: str
+    supabase_url: str
+    supabase_key: str
+    supabase_bucket: str
+    groq_key: str
+    text_model: str
+    vision_model: str
     speech_model: str
-    document_ai_location: str
-    document_ai_processor_id: str | None
-    firebase_project_id: str | None
-    firebase_credentials_path: str | None
-    google_maps_api_key: str | None
-    allow_anonymous_auth: bool
-    admin_emails: list[str]
-    allowed_origins: list[str]
-
+    admin_emails: tuple[str, ...]
+    allowed_origins: tuple[str, ...]
+    local_upload_dir: Path
+    demo_secret: str
+    brevo_key: str
+    mail_sender: str
+    frontend_url: str
+    turnstile_secret: str
+    max_upload_bytes: int = 10 * 1024 * 1024
     @property
-    def google_enabled(self) -> bool:
-        return bool(self.google_cloud_project)
-
-    @property
-    def firebase_enabled(self) -> bool:
-        return bool(self.firebase_project_id)
-
+    def demo(self) -> bool:
+        return self.mode == 'demo'
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-    except ImportError:
-        pass
-        
+    from dotenv import load_dotenv
     root = Path(__file__).resolve().parents[2]
-    language_codes = tuple(
-        code.strip()
-        for code in os.getenv("SPEECH_LANGUAGE_CODES", "en-US,hi-IN").split(",")
-        if code.strip()
+    # Deliberately ignore legacy Google .env files.
+    load_dotenv(root / '.env.local')
+    mode = os.getenv('APP_MODE', 'demo').strip().lower()
+    if mode not in {'demo', 'connected'}:
+        raise ValueError('APP_MODE must be demo or connected')
+    import secrets
+    settings = Settings(
+        mode=mode,
+        supabase_url=os.getenv('SUPABASE_URL', '').rstrip('/'),
+        supabase_key=os.getenv('SUPABASE_SERVICE_ROLE_KEY', ''),
+        supabase_bucket=os.getenv('SUPABASE_STORAGE_BUCKET', 'seva-media'),
+        groq_key=os.getenv('GROQ_API_KEY', ''),
+        text_model=os.getenv('GROQ_TEXT_MODEL', 'openai/gpt-oss-20b'),
+        vision_model=os.getenv('GROQ_VISION_MODEL', 'qwen/qwen3.8-27b'),
+        speech_model=os.getenv('GROQ_SPEECH_MODEL', 'whisper-large-v3-turbo'),
+        admin_emails=tuple(e.strip().lower() for e in os.getenv('ADMIN_EMAILS', '').split(',') if e.strip()),
+        allowed_origins=tuple(o.strip() for o in os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if o.strip()),
+        local_upload_dir=root / '.data' / 'uploads',
+        demo_secret=os.getenv('DEMO_SESSION_SECRET') or secrets.token_hex(32),
+        brevo_key=os.getenv('BREVO_API_KEY', ''),
+        mail_sender=os.getenv('MAIL_SENDER', ''),
+        frontend_url=os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/'),
+        turnstile_secret=os.getenv('TURNSTILE_SECRET_KEY', ''),
     )
-
-    return Settings(
-        google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT", os.getenv("FIREBASE_PROJECT_ID")),
-        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
-        upload_bucket=os.getenv("UPLOAD_BUCKET"),
-        local_upload_dir=root / os.getenv("LOCAL_UPLOAD_DIR", "uploads"),
-        vertex_fast_model=os.getenv("VERTEX_MODEL_FAST", "gemini-2.5-flash"),
-        vertex_pro_model=os.getenv("VERTEX_MODEL_PRO", "gemini-2.5-pro"),
-        speech_language_codes=language_codes or ("en-US",),
-        speech_model=os.getenv("SPEECH_MODEL", "short"),
-        document_ai_location=os.getenv("DOCUMENT_AI_LOCATION", "us"),
-        document_ai_processor_id=os.getenv("DOCUMENT_AI_PROCESSOR_ID"),
-        firebase_project_id=os.getenv("FIREBASE_PROJECT_ID"),
-        firebase_credentials_path=os.getenv("FIREBASE_CREDENTIALS_PATH"),
-        google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY"),
-        allow_anonymous_auth=_bool_env("ALLOW_ANONYMOUS_AUTH", True),
-        admin_emails=[e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "coordinator@seva.org").split(",") if e.strip()],
-        allowed_origins=[o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()],
-    )
+    if not settings.demo and (not settings.supabase_url.startswith('https://') or not settings.supabase_key):
+        raise ValueError('Connected mode requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
+    if '*' in settings.allowed_origins:
+        raise ValueError('Use explicit ALLOWED_ORIGINS, not a wildcard')
+    return settings

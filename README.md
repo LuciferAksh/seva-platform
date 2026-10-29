@@ -1,95 +1,57 @@
-# SEVA: Scalable Emergency Volunteer Activator
-### *Converting Chaotic Community Signals into Coordinated Humanitarian Action.*
+# Seva — Humanity, coordinated.
 
-[![GCP](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/)
-[![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+Seva turns community field reports into coordinated volunteer action: report a need, review it, dispatch the right person, and close the loop with reviewed evidence.
 
----
+## Three experiences, one response
 
-## 📌 Overview
-**SEVA** is an AI-native, production-grade disaster relief and coordination platform. Built for the **Google Solution Challenge 2026**, it solves the problem of "Fragmented Field Data" by using Multimodal AI to transform chaotic voice notes, images, and text into structured, geotagged, and AI-audited logistical missions.
+- **Community site (`/`)**: accessible reporting by text, voice note or photo. Public reporters receive a reference, not access to private reports.
+- **Coordinator workspace (`/admin`)**: interactive response map, incident queue, volunteer matching, dispatch, evidence review and impact reporting.
+- **Volunteer portal (`/volunteer`)**: a volunteer’s own assignments and evidence submissions.
 
-## 🚀 Key Innovations (The "Wow" Factor)
+The frontend now includes a complete **browser-local demo** requiring no account, backend or API key. It is clearly marked as a demo and does not send a request for real assistance.
 
-### 1. 🧠 AI-Driven Logistical Radar
-Unlike static maps, SEVA acts as a logistical brain. Using **Gemini 2.5 Flash**, the system performs **Deep Spatial Reasoning** on field reports.
-*   **Predictive Supply Lists**: If a fire is reported, the AI automatically predicts the need for "Burn cream", "Sterile bandages", and "Fire extinguishers".
-*   **Automated Facility Discovery**: Integrated with the **Google Maps Places API**, the system automatically identifies and routes volunteers to the 3 nearest functional hospitals or pharmacies relative to the disaster GPS coordinates.
+## Stack
 
-### 2. ⚡ Hybrid Lazy-Caching Architecture (Cost Optimized)
-To prevent API rate limits and massive Vertex AI billing spikes during a crisis, SEVA utilizes an advanced caching layer.
-*   **Background Processing**: `FastAPI BackgroundTasks` instantly pre-computes Gemini volunteer matches when a new incident is logged, storing the AI output in Firestore.
-*   **Millisecond Loading**: When 10,000 volunteers open the Ops Dashboard, the data loads from the cache in under 1 millisecond—cutting Vertex AI costs by over 95%.
+React 18, TypeScript, Vite 7, Leaflet, Supabase Auth/Postgres/Storage, FastAPI, hosted Groq text/vision/Whisper processing, and optional Brevo email delivery. Frontend hosting can use Cloudflare Pages or Render Static Sites; the Python API targets Render Free. Active application code has no Firebase or GCP runtime requirement.
 
-### 3. 🛡️ AI-Verified Impact Auditing (The Gatekeeper)
-NGOs struggle to prove their impact. SEVA eliminates fraud and "guesswork" by forcing a **Vision-based Audit**. 
-*   Volunteers must upload a completion photo. 
-*   **Gemini Vision AI** acts as an active gatekeeper, mathematically counting the number of people receiving aid and outright rejecting irrelevant/fake submissions with a `400 Bad Request`.
+## Run the demo
 
-### 4. 📶 Offline-First Resilience (PWA)
-Disaster zones have zero connectivity. SEVA is built as a **Progressive Web App** with **Background Sync**. 
-*   Field workers can log reports with 0 bars of signal. 
-*   Data is saved securely to **IndexedDB** and automatically "wakes up" to sync with the FastAPI backend the moment a network connection is restored.
+Use Node 24 (minimum 22.12). From `frontend/`:
 
----
-
-## 🏗️ Technical Architecture
-
-### **The Stack**
-*   **Backend**: FastAPI (Python 3.14)
-*   **Database**: Google Cloud Firestore (Native Mode)
-*   **Auth**: Firebase Authentication (Custom Bot-Proof React Router Flow)
-*   **AI Engine**: Vertex AI (Gemini 2.5 Flash & Pro)
-*   **Maps**: React-Leaflet + Official Google Maps API (SOI Compliant Borders)
-*   **Storage**: Google Cloud Storage (Media handling)
-
-### **Security & Compliance**
-SEVA is fortified against the **OWASP Top 10**:
-*   **A01: Broken Access Control**: Strict `Path Guard` session isolation ensures volunteers can never preload or access the `/admin` portal.
-*   **A02: Security Misconfiguration**: Custom "Click-to-Verify" Firebase routing defeats automated email scanners and prevents race-condition vulnerabilities during signup.
-*   **A05: Security Misconfiguration**: Whitelisted CORS origins explicitly defined in `.env`.
-*   **A10: Exception Handling**: Generic user-facing errors that prevent internal system data leakage.
-
----
-
-## 🛠️ Setup & Installation
-
-### 1. Prerequisites
-*   A Google Cloud Project with **Vertex AI**, **Places API (New)**, and **Cloud Firestore** enabled.
-*   A Service Account JSON key stored in `/secrets`.
-
-### 2. Backend Setup
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # Or .\.venv\Scripts\activate on Windows
-pip install -r requirements.txt
-# Configure your .env with GOOGLE_MAPS_API_KEY and Firebase IDs
-uvicorn app.main:app --reload
-```
-
-### 3. Frontend Setup
-```bash
-cd frontend
-npm install
+```powershell
+npm ci
 npm run build
-npm run dev
+npm run preview -- --host 127.0.0.1 --port 4173
 ```
 
----
+Open `http://127.0.0.1:4173/`. Create a synthetic public report and follow its receipt to the coordinator demo. Assign Asha Verma, open `/volunteer`, submit a harmless demonstration photo, and return to `/admin` to review the mission. Demo state persists only in that browser and origin.
 
-## 🎨 Design Philosophy
-SEVA uses a **Cyber-Tactical Dark Mode** designed for high-stress, low-light environments. 
-*   **Typography**: DM Sans (Readability), Syne (Authority), Space Mono (Data).
-*   **Visual Language**: Pulse-ring animations for active events and high-contrast "Heatmap Blobs" for urgency clustering.
+For local frontend development, use `npm run dev`. For the optional synthetic API, install `backend/requirements.txt` and run `python -m uvicorn app.main:app --reload` from `backend/`. The API defaults to explicit demo mode with short-lived, signed demo sessions; connected mode requires Supabase configuration.
 
-*See `DESIGN.md` for full token specifications.*
+## Deploy connected services
 
----
+Read [the deployment guide](docs/free-stack-deployment.md). It covers free hosting, SQL setup, bot protection, authentication, private storage, AI configuration, email, identity/data migration, and acceptance checks. Examples are in `.env.example` and `frontend/.env.example`; production secrets must never enter Git or frontend variables.
 
-## 🌍 Social Impact
-By automating the lifecycle of a crisis—from chaotic ingestion to verified completion—SEVA reduces response times by up to **85%** and provides NGOs with the mathematically verified data they need to secure government funding and scale their impact.
+Connected mode enforces server-side roles, verified email, account-bound offline replay, idempotent submissions, version-checked assignments, required completion photos and coordinator review. AI assists the team; it does not establish authenticity or make dispatch decisions.
 
-**SEVA: Scalable, Explainable, Verifiable, Actionable.**
+## Verify
+
+From the repository root:
+
+```powershell
+python -m pip install -r backend/requirements.txt
+python -m unittest discover -s backend/tests -v
+```
+
+From `frontend/`, run `npm run build` and `npm audit`. The [CI workflow](.github/workflows/verify.yml) checks both stacks.
+
+## Project notes
+
+- [Current architecture](docs/architecture.md)
+- [Free stack deployment and demo walkthrough](docs/free-stack-deployment.md)
+- [Initial hosting evaluation](docs/free-hosting-evaluation.md)
+- [Design system](DESIGN.md)
+
+Seva began as a Google Solution Challenge project. Earlier Google service modules and prototype helper scripts remain as historical source references; they are not loaded by the new application. Existing Google-hosted data is not automatically migrated or deleted.
+
+Free hosting has capacity and availability limits. Use the current release for demonstration or an evaluated small pilot, not guaranteed emergency-service availability.

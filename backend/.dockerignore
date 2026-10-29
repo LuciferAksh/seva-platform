@@ -7,3 +7,7 @@ secrets/
 *.pyd
 .git
 .gitignore
+
+.env.*
+.data/
+tests/

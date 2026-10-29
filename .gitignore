@@ -45,3 +45,17 @@ __pycache__/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Reproducible frontend builds
+!package-lock.json
+!tsconfig.node.json
+# Local demo uploads and private configuration
+backend/.data/
+.env.local
+
+!backend/tests/**/*.py
+
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+artifacts/

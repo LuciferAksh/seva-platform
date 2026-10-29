@@ -1,297 +1,115 @@
 from __future__ import annotations
-import os
-from uuid import uuid4
-
-from .extractor import extract_need
-from .matching import score_volunteer
-from .models import (
-    AssignmentRecord,
-    CompletionLog,
-    DashboardSummary,
-    MatchRecommendation,
-    NeedExtraction,
-    NeedReport,
-    ReportSubmission,
-    Volunteer,
-    VolunteerSignup,
-)
-
-
-class DemoStore:
-    def __init__(self) -> None:
-        self.volunteers: list[Volunteer] = [
-            Volunteer(
-                id="vol-1",
-                name="Asha Verma",
-                email="asha@seva.org",
-                phone="+91-987650001",
-                locality="Adyar",
-                coordinates={"lat": 13.0067, "lng": 80.2573},
-                skills=["distribution", "community-outreach"],
-                languages=["Hindi", "English", "Tamil"],
-                availability="available",
-                reliability_score=0.94,
-            ),
-            Volunteer(
-                id="vol-2",
-                name="Rohan Mehta",
-                email="rohan@seva.org",
-                phone="+91-987650002",
-                locality="Chennai Central",
-                coordinates={"lat": 13.0827, "lng": 80.2707},
-                skills=["first-aid", "medical-support", "coordination"],
-                languages=["Hindi", "English"],
-                availability="available",
-                reliability_score=0.91,
-            ),
-            Volunteer(
-                id="vol-3",
-                name="Priya Nair",
-                email="priya@seva.org",
-                phone="+91-987650003",
-                locality="Rohini",
-                coordinates={"lat": 28.7494, "lng": 77.0565},
-                skills=["teaching", "coordination", "logistics"],
-                languages=["Hindi", "English"],
-                availability="busy",
-                reliability_score=0.88,
-            ),
-        ]
-
-        self.needs: list[NeedReport] = [
-            NeedReport(
-                source_type="voice",
-                original_text="30 families in Adyar need food packets and clean drinking water after flooding.",
-                reporter_name="Kavya",
-                extraction=extract_need("30 families in Adyar need food packets and clean drinking water after flooding."),
-                priority_score=8.4,
-            ),
-            NeedReport(
-                source_type="text",
-                original_text="There is a child with fever in Chennai and urgent medical support is needed.",
-                reporter_name="Manoj",
-                extraction=extract_need("There is a child with fever in Chennai and urgent medical support is needed."),
-                priority_score=9.1,
-            ),
-        ]
-
-        self.completions: list[CompletionLog] = []
-        self.assignments: list[AssignmentRecord] = []
-
-    def _build_priority_score(self, extraction: NeedReport | NeedExtraction) -> float:
-        if isinstance(extraction, NeedReport):
-            target = extraction.extraction
-        else:
-            target = extraction
-        return round(
-            target.urgency_level * 1.5
-            + min(3.0, target.people_affected / 20)
-            + (1.0 if target.category == "medical" else 0.0),
-            2,
-        )
-
-    def submit_report(
-        self,
-        submission: ReportSubmission,
-        *,
-        structured: dict | None = None,
-        media_uri: str | None = None,
-        source_summary: str | None = None,
-        processing_mode: str = "demo",
-    ) -> NeedReport:
-        extraction = extract_need(submission.text, submission.lat, submission.lng, structured=structured)
-        priority_score = self._build_priority_score(extraction)
-
-        report = NeedReport(
-            source_type=submission.source_type,
-            original_text=submission.text,
-            reporter_name=submission.reporter_name,
-            extraction=extraction,
-            priority_score=priority_score,
-            media_uri=media_uri,
-            source_summary=source_summary,
-            processing_mode="google" if processing_mode == "google" else "demo",
-        )
-        self.needs.insert(0, report)
-        return report
-
-    def submit_processed_report(
-        self,
-        *,
-        source_type: str,
-        text: str,
-        reporter_name: str,
-        lat: float | None = None,
-        lng: float | None = None,
-        structured: dict | None = None,
-        media_uri: str | None = None,
-        source_summary: str | None = None,
-        processing_mode: str = "demo",
-    ) -> NeedReport:
-        submission = ReportSubmission(
-            source_type=source_type,
-            text=text,
-            reporter_name=reporter_name,
-            lat=lat,
-            lng=lng,
-        )
-        return self.submit_report(
-            submission,
-            structured=structured,
-            media_uri=media_uri,
-            source_summary=source_summary,
-            processing_mode=processing_mode,
-        )
-
-    def list_needs(self) -> list[NeedReport]:
-        return self.needs
-
-    def list_volunteers(self) -> list[Volunteer]:
-        return self.volunteers
-
-    def find_volunteer_by_email(self, email: str) -> Volunteer | None:
-        lowered = email.strip().lower()
-        return next((volunteer for volunteer in self.volunteers if (volunteer.email or "").lower() == lowered), None)
-
-    def create_volunteer(self, signup: VolunteerSignup) -> Volunteer:
-        existing = self.find_volunteer_by_email(signup.email)
-        if existing is not None:
-            return existing
-
-        volunteer = Volunteer(
-            id=f"vol-{uuid4().hex[:8]}",
-            name=signup.name,
-            email=signup.email,
-            phone=signup.phone,
-            locality=signup.locality,
-            coordinates={
-                "lat": signup.lat if signup.lat is not None else 28.6139,
-                "lng": signup.lng if signup.lng is not None else 77.2090,
-            },
-            skills=signup.skills,
-            languages=signup.languages,
-            availability="available",
-            reliability_score=0.8,
-        )
-        self.volunteers.append(volunteer)
-        return volunteer
-
-    def get_matches(self, need_id: str) -> list[MatchRecommendation]:
-        if not hasattr(self, 'matches_cache'):
-            self.matches_cache = {}
-        if need_id in self.matches_cache:
-            return self.matches_cache[need_id]
-
-        need = next((item for item in self.needs if item.id == need_id), None)
-        if need is None:
-            return []
-
-        from .matching import rank_volunteers
-        matches = rank_volunteers(need, self.volunteers)
-        self.matches_cache[need_id] = matches
-        return matches
-
-    def list_assignments(self, volunteer_id: str | None = None) -> list[AssignmentRecord]:
-        if volunteer_id is None:
-            return self.assignments
-        return [assignment for assignment in self.assignments if assignment.volunteer_id == volunteer_id]
-
-    def assign_need(
-        self,
-        *,
-        need_id: str,
-        volunteer_id: str,
-        match_score: float,
-        match_reason: str,
-    ) -> AssignmentRecord | None:
-        need = next((item for item in self.needs if item.id == need_id), None)
-        volunteer = next((item for item in self.volunteers if item.id == volunteer_id), None)
-        if need is None or volunteer is None:
-            return None
-
-        need.status = "assigned"
-        existing = next((assignment for assignment in self.assignments if assignment.need_id == need_id), None)
-        if existing is not None:
-            existing.volunteer_id = volunteer_id
-            existing.volunteer_name = volunteer.name
-            existing.match_score = match_score
-            existing.match_reason = match_reason
-            existing.status = "assigned"
-            return existing
-
-        assignment = AssignmentRecord(
-            need_id=need_id,
-            volunteer_id=volunteer_id,
-            volunteer_name=volunteer.name,
-            match_score=match_score,
-            match_reason=match_reason,
-        )
-        self.assignments.append(assignment)
-        return assignment
-
-    def mark_complete(self, need_id: str, volunteer_id: str, notes: str, media_uri: str | None = None, verified_people: int | None = None, verification_reasoning: str | None = None) -> CompletionLog | None:
-        need = next((item for item in self.needs if item.id == need_id), None)
-        if need is None:
-            return None
-
-        need.status = "completed"
-        assignment = next(
-            (
-                item
-                for item in self.assignments
-                if item.need_id == need_id and item.volunteer_id == volunteer_id
-            ),
-            None,
-        )
-        if assignment is not None:
-            assignment.status = "completed"
-        completion = CompletionLog(need_id=need_id, volunteer_id=volunteer_id, notes=notes, media_uri=media_uri, verified_people=verified_people, verification_reasoning=verification_reasoning)
-        self.completions.append(completion)
-        return completion
-
-    def summary(self) -> DashboardSummary:
-        active = sum(1 for need in self.needs if need.status == "new")
-        assigned = sum(1 for need in self.needs if need.status == "assigned")
-        completed = sum(1 for need in self.needs if need.status == "completed")
-        
-        completions_by_need = {c.need_id: c for c in self.completions}
-        families_impacted = 0
-        for need in self.needs:
-            if need.status == "completed":
-                completion = completions_by_need.get(need.id)
-                if completion and completion.verified_people is not None:
-                    families_impacted += completion.verified_people
-                else:
-                    families_impacted += need.extraction.people_affected
-                    
-        active_volunteers = sum(1 for volunteer in self.volunteers if volunteer.availability == "available")
-
-        return DashboardSummary(
-            active_needs=active,
-            assigned_needs=assigned,
-            completed_needs=completed,
-            active_volunteers=active_volunteers,
-            families_impacted=families_impacted,
-        )
-
+from datetime import datetime, timezone
+from uuid import uuid4, uuid5, NAMESPACE_URL
+from fastapi import HTTPException
 from .config import get_settings
+from .extractor import extract_need
+from .matching import rank_volunteers
+from .models import AssignmentRecord, CompletionLog, DashboardSummary, NeedReport, Volunteer
+from .repository import MemoryRepository, SupabaseRepository, change
 
-settings = get_settings()
+class Store:
+    def __init__(self, repository):
+        self.repo=repository
+    def get_need(self,id):
+        row=self.repo.get('needs',id)
+        return NeedReport(**row['body']) if row else None
+    def list_needs(self):
+        return sorted([NeedReport(**r['body']) for r in self.repo.list('needs')],key=lambda n:n.created_at,reverse=True)
+    def list_volunteers(self):
+        return [Volunteer(**r['body']) for r in self.repo.list('volunteers')]
+    def find_volunteer_by_email(self,email):
+        rows=self.repo.list('volunteers',email=email.lower())
+        return Volunteer(**rows[0]['body']) if rows else None
+    def create_volunteer(self,signup,uid):
+        record=Volunteer(id=uid,name=signup.name[:100],email=signup.email.lower(),phone=signup.phone,
+            locality=signup.locality[:120],coordinates={'lat':signup.lat or 0,'lng':signup.lng or 0},
+            skills=signup.skills,languages=signup.languages,availability='available',reliability_score=.8)
+        existing=self.repo.get('volunteers',uid)
+        if existing:return Volunteer(**existing['body'])
+        self.repo.write([change('volunteers',record)])
+        return record
+    def submission_record_id(self,uid,submission_id):
+        return str(uuid5(NAMESPACE_URL,uid+':'+submission_id))
+    def find_submission(self,uid,submission_id):
+        return self.get_need(self.submission_record_id(uid,submission_id))
+    def submit_processed_report(self,*,uid,submission_id,source_type,text,reporter_name,lat,lng,structured,media_uri,source_summary,processing_mode):
+        id=self.submission_record_id(uid,submission_id)
+        extraction=extract_need(text,lat,lng,structured)
+        need=NeedReport(id=id,source_type=source_type,original_text=text[:10000],reporter_name=reporter_name[:100],
+            extraction=extraction,priority_score=round(extraction.urgency_level*1.5+min(3,extraction.people_affected/20),2),
+            media_uri=media_uri,source_summary=source_summary,processing_mode=processing_mode,submitted_by=uid,submission_id=submission_id)
+        try:self.repo.write([change('needs',need)])
+        except HTTPException as exc:
+            if exc.status_code!=409:raise
+            existing=self.get_need(id)
+            if existing:return existing
+            raise
+        return need
+    def list_assignments(self,volunteer_id=None):
+        rows=self.repo.list('assignments',**({'volunteer_id':volunteer_id} if volunteer_id else {}))
+        return [AssignmentRecord(**r['body']) for r in rows]
+    def get_matches(self,need_id):
+        need=self.get_need(need_id)
+        if not need:raise HTTPException(404,'Report not found')
+        return rank_volunteers(need,self.list_volunteers())
+    def assign_need(self,need_id,volunteer_id):
+        need_row=self.repo.get('needs',need_id);vol_row=self.repo.get('volunteers',volunteer_id)
+        if not need_row or not vol_row:raise HTTPException(404,'Report or volunteer not found')
+        need=NeedReport(**need_row['body']);vol=Volunteer(**vol_row['body'])
+        if need.status!='new' or vol.availability!='available':raise HTTPException(409,'Report or volunteer is already assigned')
+        match=next((m for m in rank_volunteers(need,[vol])),None)
+        assignment=AssignmentRecord(id=need_id,need_id=need_id,volunteer_id=volunteer_id,volunteer_name=vol.name,
+            match_score=match.score,match_reason=match.explanation)
+        need.status='assigned';vol.availability='busy'
+        changes=[change('needs',need,need_row['version']),change('volunteers',vol,vol_row['version']),change('assignments',assignment)]
+        if vol.email:changes.append(self.mail_record(vol.email,'New Seva mission',need.extraction.summary))
+        self.repo.write(changes)
+        return assignment
+    def list_completions(self):
+        return [CompletionLog(**r['body']) for r in self.repo.list('completions')]
+    def mark_complete(self,need_id,volunteer_id,notes,media_uri,verified_people=None,verification_reasoning=None):
+        nr=self.repo.get('needs',need_id);ar=self.repo.get('assignments',need_id)
+        if not nr or not ar:raise HTTPException(409,'An active assignment is required')
+        if nr['body']['status']!='assigned' or ar['body']['volunteer_id']!=volunteer_id or ar['body']['status']!='assigned':
+            raise HTTPException(409,'This mission is not assigned to that volunteer or is already submitted')
+        if not media_uri:raise HTTPException(422,'A completion photo is required')
+        completion=CompletionLog(id=need_id,need_id=need_id,volunteer_id=volunteer_id,notes=notes[:3000],media_uri=media_uri,
+            verified_people=verified_people,verification_reasoning=verification_reasoning,review_status='pending')
+        prior=self.repo.get('completions',need_id)
+        need=NeedReport(**nr['body']);need.status='pending_review'
+        self.repo.write([change('needs',need,nr['version']),change('completions',completion,prior['version'] if prior else 0)])
+        return completion
+    def review_completion(self,need_id,approved,confirmed_people=None):
+        nr=self.repo.get('needs',need_id);cr=self.repo.get('completions',need_id);ar=self.repo.get('assignments',need_id)
+        if not nr or not cr or not ar or nr['body']['status']!='pending_review':raise HTTPException(409,'No pending review for this report')
+        need=NeedReport(**nr['body']);completion=CompletionLog(**cr['body']);assignment=AssignmentRecord(**ar['body'])
+        need.status='completed' if approved else 'assigned';completion.review_status='approved' if approved else 'rejected'
+        if approved and confirmed_people is not None:completion.verified_people=confirmed_people
+        changes=[change('needs',need,nr['version']),change('completions',completion,cr['version'])]
+        if approved:
+            assignment.status='completed';changes.append(change('assignments',assignment,ar['version']))
+            vr=self.repo.get('volunteers',assignment.volunteer_id)
+            if vr:
+                volunteer=Volunteer(**vr['body']);volunteer.availability='available';changes.append(change('volunteers',volunteer,vr['version']))
+                if volunteer.email:changes.append(self.mail_record(volunteer.email,'Seva mission reviewed','Your relief mission has been approved. Thank you.'))
+        self.repo.write(changes)
+        return completion
+    def summary(self,needs=None,volunteers=None,completions=None):
+        needs=self.list_needs() if needs is None else needs
+        volunteers=self.list_volunteers() if volunteers is None else volunteers
+        completions=self.list_completions() if completions is None else completions
+        people=sum(c.verified_people or 0 for c in completions if c.review_status=='approved')
+        return DashboardSummary(active_needs=sum(n.status=='new' for n in needs),assigned_needs=sum(n.status=='assigned' for n in needs),
+            completed_needs=sum(n.status=='completed' for n in needs),active_volunteers=sum(v.availability=='available' for v in volunteers),
+            families_impacted=0,people_helped=people,pending_reviews=sum(n.status=='pending_review' for n in needs))
+    def mail_record(self,email,subject,text):
+        id=str(uuid4())
+        return change('email_outbox',{'id':id,'to':email,'subject':subject,'text':text,'status':'pending','created_at':datetime.now(timezone.utc).isoformat()})
 
-if settings.firebase_enabled:
-    from google.cloud import firestore
-    from .firestore_store import FirestoreStore
-    # K_SERVICE is automatically set by Google Cloud Run. 
-    # If it exists, we are in the cloud and MUST use default credentials.
-    if os.getenv("K_SERVICE"):
-        # Force the SDK to ignore any local file paths
-        if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
-            del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-        db = firestore.Client(project=settings.firebase_project_id)
-    elif not settings.firebase_credentials_path or not os.path.exists(settings.firebase_credentials_path):
-        db = firestore.Client(project=settings.firebase_project_id)
-    else:
-        db = firestore.Client.from_service_account_json(settings.firebase_credentials_path, project=settings.firebase_project_id)
-    store = FirestoreStore(db)
-else:
-    store = DemoStore()
+settings=get_settings()
+repository=MemoryRepository() if settings.demo else SupabaseRepository(settings)
+store=Store(repository)
+if settings.demo:
+    from .seed import seed_demo
+    seed_demo(repository)

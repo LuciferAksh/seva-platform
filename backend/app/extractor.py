@@ -51,6 +51,8 @@ def coerce_category(value: str | None) -> NeedCategory | None:
 
 def infer_urgency(text: str, category: NeedCategory) -> int:
     lowered = text.lower()
+    if any(token in lowered for token in ('fire', 'trapped', 'collapse', 'severe injury', 'unconscious')):
+        return 9
     score = 2
     if any(token in lowered for token in ("urgent", "immediately", "critical", "emergency")):
         score += 2
@@ -58,16 +60,16 @@ def infer_urgency(text: str, category: NeedCategory) -> int:
         score += 1
     if any(token in lowered for token in ("child", "children", "elderly", "fever")):
         score += 1
-    return min(score, 5)
+    return min(score + (2 if score >= 4 else 0), 10)
 
 
 def infer_people_affected(text: str) -> int:
     match = re.search(r"(\d+)\s+(families|people|persons|children|kids)", text.lower())
     if match:
-        return int(match.group(1))
+        return max(1,min(100000,int(match.group(1))))
 
     numbers = re.findall(r"\d+", text)
-    return int(numbers[0]) if numbers else 10
+    return max(1,min(100000,int(numbers[0]))) if numbers else 1
 
 
 def infer_location(
@@ -75,9 +77,14 @@ def infer_location(
     lat: float | None,
     lng: float | None,
     explicit_label: str | None = None,
-) -> tuple[str, Coordinates]:
+) -> tuple[str, Coordinates | None]:
     if lat is not None and lng is not None:
-        return explicit_label or "Pinned location", Coordinates(lat=lat, lng=lng)
+        clean_label = None
+        if explicit_label and explicit_label.strip():
+            lbl = explicit_label.strip().lower()
+            if "unknown" not in lbl and lbl != "none" and lbl != "null":
+                clean_label = explicit_label.strip()
+        return clean_label or "Pinned location", Coordinates(lat=lat, lng=lng)
 
     lowered = text.lower()
     for label, coordinates in LOCATION_HINTS.items():
@@ -85,9 +92,12 @@ def infer_location(
             return label.title(), coordinates
 
     if explicit_label:
-        return explicit_label.strip(), Coordinates(lat=28.6139, lng=77.2090)
+        clean_explicit = explicit_label.strip()
+        lbl_lower = clean_explicit.lower()
+        if "unknown" not in lbl_lower and lbl_lower != "none" and lbl_lower != "null":
+            return clean_explicit, None
 
-    return "Unknown locality", Coordinates(lat=28.6139, lng=77.2090)
+    return "Location needs confirmation", None
 
 
 def extract_need(
@@ -101,7 +111,7 @@ def extract_need(
     category = coerce_category(structured.get("category")) or infer_category(text)
 
     urgency_value = structured.get("urgency_level")
-    urgency = urgency_value if isinstance(urgency_value, int) and 1 <= urgency_value <= 5 else infer_urgency(text, category)
+    urgency = urgency_value if isinstance(urgency_value, int) and 1 <= urgency_value <= 10 else infer_urgency(text, category)
 
     people_value = structured.get("people_affected")
     people = people_value if isinstance(people_value, int) and people_value > 0 else infer_people_affected(text)
@@ -109,14 +119,7 @@ def extract_need(
     explicit_location = structured.get("location_label") if isinstance(structured.get("location_label"), str) else None
     search_text = " ".join(part for part in [text, explicit_location] if part)
 
-    struct_coords = structured.get("coordinates")
-    if lat is None and lng is None and isinstance(struct_coords, dict):
-        try:
-            if "lat" in struct_coords and "lng" in struct_coords:
-                lat = float(struct_coords["lat"])
-                lng = float(struct_coords["lng"])
-        except (TypeError, ValueError):
-            pass
+    # Only confirmed GPS/map coordinates are accepted, never model guesses.
 
     location_label, coordinates = infer_location(search_text, lat, lng, explicit_location)
 

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import json
 import os
 from dataclasses import dataclass
 from typing import Any
 
 from ..config import Settings
+
+logger = logging.getLogger(__name__)
 
 try:
     from google import genai
@@ -121,7 +124,10 @@ class GoogleIntelligencePipeline:
                     "type": "STRING",
                     "enum": ["food", "medical", "shelter", "education", "water", "other"],
                 },
-                "urgency_level": {"type": "INTEGER"},
+                "urgency_level": {
+                    "type": "INTEGER",
+                    "description": "Urgency scale from 1 to 10. You MUST assign 8, 9, or 10 for fires, trapped individuals, or medical emergencies. 1-3 is only for non-emergencies."
+                },
                 "people_affected": {"type": "INTEGER"},
                 "location_label": {"type": "STRING"},
                 "coordinates": {
@@ -151,10 +157,11 @@ class GoogleIntelligencePipeline:
         prompt = (
             "You are helping an NGO operations platform structure community reports. "
             "Read the field report and return JSON only. "
-            "Infer the most likely category, urgency from 1 to 10 (where 10 is catastrophic/loss of life and 1 is minor), people affected, "
+            "Infer the most likely category, urgency from 1 to 10 (Strict rubric: 1-3 minor, 4-6 urgent, 7-10 critical/life-threatening/fire/trapped), people affected, "
             "best locality label, exact GPS coordinates (lat and lng) for that location as floats, required volunteer skills, and a short operational summary. "
             "Also deeply analyze the incident and provide an EXTENSIVE, hyper-specific list of 'suggested_supplies' (e.g., instead of just 'medical', specify exactly: 'Burn cream', 'Sterile bandages', 'Antibiotics', 'Fire extinguisher', 'Blankets', 'Water purification tablets', etc.). "
-            "If a specific facility is needed, strictly provide 'facility_type_needed' (must be exactly 'hospital', 'pharmacy', 'medical_clinic', 'police', 'fire_station', or null).\n\n"
+            "If a specific facility is needed, strictly provide 'facility_type_needed' (must be exactly 'hospital', 'pharmacy', 'medical_clinic', 'police', 'fire_station', or null).\n"
+            "CRITICAL INSTRUCTION: You are grading 'urgency_level'. If the report mentions ANY of the following: fire, trapped individuals, severe injury, collapse, or immediate rescue, you MUST output an urgency_level of 9 or 10. Do not output anything lower than 8 for a fire.\n\n"
             f"Source type: {source_type}\n"
             f"Field report text:\n{text.strip()}"
         )
