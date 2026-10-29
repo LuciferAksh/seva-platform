@@ -22,6 +22,8 @@
 | Image report → OCR/description → structured report → private storage | Passed live with generated text image |
 | Voice report → Whisper → structured report → private storage | Passed live with synthesized speech |
 | Coordinator browser sign-in → dashboard | Passed against Supabase and Render |
+| Public form → real Turnstile validation → AI intake → receipt | Passed in deployed browser with synthetic report |
+| Delivery-image review | Live AI rejected an unrelated synthetic report image; real delivery-photo quality remains unverified |
 | AI volunteer suggestions → dispatch → volunteer-owned assignment view | Passed live with disposable test account |
 | Volunteer directory access and dispatch permission | Both denied with HTTP 403 |
 | Anonymous private API and attachment access | Denied with HTTP 401 |
