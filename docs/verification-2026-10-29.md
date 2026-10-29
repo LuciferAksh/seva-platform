@@ -2,7 +2,7 @@
 
 ## Scope
 
-Current local source and a production frontend build. The tested UI used synthetic/browser-local data. Connected cloud services, Groq inference quality, email delivery and production identity migration are not yet verified.
+Current source, production frontend build and the published Render browser demo. The tested UI used synthetic/browser-local data. The new Supabase schema and permissions were verified remotely. Connected API flows, Groq inference quality, email delivery and production identity migration are not yet verified.
 
 | Boundary | Result | Evidence |
 |---|---|---|
@@ -29,6 +29,17 @@ Browser screenshots: `artifacts/seva-public-preview.jpg`, `artifacts/seva-admin-
 ## Limits and pending work
 
 - Demo state is shared only within one browser/origin. It does not dispatch real responders or call AI.
-- Real service setup still needs selected deployment destinations and private environment credentials, including public-intake bot protection and an approved email sender.
+- Connected service setup still needs private environment credentials, public-intake bot protection and an approved email sender.
 - No Firestore/GCS/Firebase-user migration, GCP deletion, billing change or real-world dispatch was performed.
 - Free-hosted connected mode needs acceptance checks for signup/verification/reset, storage, API cold start, voice/image quality, operational email and rate/quota failures before real use.
+
+## Published demo and database
+
+- Public: https://seva-community-demo.onrender.com/
+- Coordinator: https://seva-community-demo.onrender.com/admin
+- Volunteer: https://seva-community-demo.onrender.com/volunteer
+- Render static site: `srv-dbhjvlou01pc73bh8nmg`, branch `codex/seva-free-demo`. Initial deploy `dep-dbhjvm8u01pc73bh8pdg` reached `live`.
+- All portal routes, verification route, service worker and manifest returned HTTP 200. Live browser verification confirmed public intake → receipt → coordinator dispatch to Asha → assignment visible in the separate volunteer portal.
+- Supabase: `seva-platform`, ref `nsjeecefxqdcgkbcobck`, Mumbai, healthy. Private `seva_records` and `seva-media` bucket are provisioned. Anonymous/authenticated direct table access and anonymous transaction execution are denied; backend service role access is granted. Browser demo does not connect to this database.
+- Security advisor has one informational [RLS enabled without policy notice](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy), consistent with deliberately server-only data and revoked browser-role grants. Performance advisor reports [unused indexes](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index) on the new empty database. No warning/error-level findings were returned.
+- GCP and unrelated Render/Supabase resources were left unchanged. Cloud resources use the approved free options; provider quotas still apply.

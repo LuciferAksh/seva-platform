@@ -36,7 +36,7 @@ export default function WorkspaceViews({ view,data,session,search,setSearch,onSe
   return <>
     <div className="context-row"><div className="context-select"><Globe2 size={15}/><select aria-label="Filter by location" value={locationFilter} onChange={e=>setLocationFilter(e.target.value)}><option value="all">All response locations</option>{[...new Set(data.needs.map(n=>n.extraction.location_label))].map(l=><option key={l}>{l}</option>)}</select><ChevronDown size={13}/></div><div className="sync-status"><i className={online?'':'gray'}/>{synced?`Synced ${synced.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`:'Not synced'}<button className="icon-button" aria-label="Refresh workspace" onClick={()=>void refresh()}><RefreshCw size={14}/></button></div></div>
     <div className="stats-grid">{[
-      {label:'Active reports',value:data.needs.filter(n=>n.status!=='completed').length,Icon:ClipboardList,note:`${data.summary.active_needs} awaiting a response`,color:'green'},
+      {label:'Active reports',value:data.needs.filter(n=>n.status!=='completed').length,Icon:ClipboardList,note:`${data.needs.filter(n=>n.status==='new').length} awaiting a response`,color:'green'},
       {label:'Critical needs',value:data.needs.filter(n=>n.status!=='completed'&&n.extraction.urgency_level>=8).length,Icon:Radio,note:'Prioritize these reports',color:'coral'},
       {label:'Available volunteers',value:available,Icon:Users,note:`${data.volunteers.length} people in your team`,color:'blue'},
       {label:'Missions completed',value:data.summary.completed_needs,Icon:CheckCircle2,note:`${data.summary.pending_reviews} waiting for review`,color:'sand'},
